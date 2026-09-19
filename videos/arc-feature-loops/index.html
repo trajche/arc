@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=800, height=560" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* Arc for Firefox feature loops for the README: eight 3s segments, each
+         a miniature of the sidebar (from welcome/welcome.css) + a caption. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 800px; height: 560px; overflow: hidden; background: #fbfafd; }
+      body { font-family: system-ui, -apple-system, sans-serif; color: #1f1a2e; }
+
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fbfafd; }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        align-items: center;
+        gap: 56px;
+        padding: 0 56px 0 48px;
+      }
+
+      /* ---------- caption ---------- */
+      .copy { display: flex; flex-direction: column; gap: 14px; }
+      .copy h1 { font-size: 46px; line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; }
+      .copy p { font-size: 21px; line-height: 1.4; color: #6f6883; max-width: 360px; }
+      .keys { display: flex; gap: 8px; }
+      .key {
+        display: block;
+        padding: 6px 12px;
+        border-radius: 9px;
+        background: #efeaf8;
+        box-shadow: inset 0 -2px 0 rgba(31, 26, 46, 0.1);
+        font: 600 18px/1 ui-monospace, "SF Mono", Menlo, monospace;
+        color: #1f1a2e;
+      }
+
+      /* ---------- miniature sidebar ---------- */
+      .stage { position: relative; width: 280px; height: 500px; }
+      .mini {
+        position: absolute;
+        inset: 0;
+        padding: 12px 12px 0;
+        border-radius: 20px;
+        background: #e9e2f6;
+        box-shadow: 0 1px 0 rgba(31, 26, 46, 0.08), 0 22px 50px rgba(138, 79, 224, 0.2);
+        font: 500 14px/1 system-ui, -apple-system, sans-serif;
+        overflow: hidden;
+      }
+      .m-top { display: flex; justify-content: space-between; align-items: center; height: 22px; }
+      .m-lights { display: flex; gap: 6px; }
+      .m-lights i { display: block; width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+      .m-lights i:nth-child(2) { background: #febc2e; }
+      .m-lights i:nth-child(3) { background: #28c840; }
+      .m-nav { display: flex; gap: 9px; }
+      .m-nav i { display: block; width: 13px; height: 3px; border-radius: 2px; background: #b6aec6; }
+
+      .m-ext { display: flex; gap: 5px; margin-top: 8px; }
+      .m-ext i { display: block; flex: 1; height: 22px; border-radius: 7px; background: rgba(255, 255, 255, 0.35); }
+
+      .m-address { position: relative; margin-top: 8px; }
+      .m-url { display: block; padding: 9px 11px; border-radius: 10px; background: rgba(0, 0, 0, 0.06); }
+      .m-suggest {
+        display: grid; gap: 2px;
+        height: 0; overflow: hidden; opacity: 0;
+        margin-top: 3px; border-radius: 10px;
+        background: #fbfafd;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+      }
+      .m-suggest > span { display: block; padding: 8px 10px; border-radius: 7px; margin: 0 4px; }
+      .m-suggest > span:first-child { margin-top: 4px; background: #8a4fe0; color: #fff; font-weight: 600; }
+
+      .m-favs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-top: 11px; }
+      .m-favs i {
+        display: block; height: 44px; border-radius: 10px;
+        background: rgba(255, 255, 255, 0.4) radial-gradient(circle, var(--c) 0 6px, transparent 6.5px);
+      }
+
+      .m-space { margin: 14px 5px 7px; font-weight: 700; font-size: 12px; color: #5b3d8f; }
+      .m-row { display: flex; align-items: center; gap: 9px; height: 28px; padding: 0 9px; border-radius: 9px; margin-bottom: 2px; }
+      .m-fav { flex: none; display: block; width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+      .m-folder-head { font-weight: 700; }
+      .m-ficon { flex: none; display: block; width: 14px; height: 11px; border: 1.6px solid currentColor; border-radius: 2px 2px 3px 3px; opacity: 0.7; }
+      .m-children { height: 0; overflow: hidden; }
+      .m-child { padding-left: 29px; }
+      .m-divider { height: 1px; margin: 7px 9px; background: rgba(31, 26, 46, 0.1); }
+      .m-new { color: #5f5873; }
+      .m-plus { width: 12px; text-align: center; }
+
+      .m-split { gap: 3px; padding: 2px; }
+      .m-half {
+        display: flex; align-items: center; gap: 7px;
+        flex: 1 1 0; min-width: 0; height: 24px; padding: 0 7px; border-radius: 7px;
+        white-space: nowrap; overflow: hidden;
+      }
+      .m-half2 { flex: 0 1 0; padding: 0; opacity: 0; }
+
+      .m-footer {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        display: flex; align-items: center; justify-content: center; gap: 12px;
+        height: 42px; border-top: 1px solid rgba(31, 26, 46, 0.1);
+        background: inherit; /* covers rows that slide under it (follows the space tint) */
+      }
+      .m-dot { display: block; width: 8px; height: 8px; border-radius: 50%; background: #9a93aa; opacity: 0.45; }
+      .m-dot.on { background: #8a4fe0; opacity: 1; }
+
+      /* Command bar floating over the page side */
+      .m-bar {
+        position: absolute;
+        left: 14px; top: 196px;
+        width: 252px;
+        padding: 16px 18px;
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(31, 26, 46, 0.08);
+        font: 500 20px/1.2 system-ui, -apple-system, sans-serif;
+        opacity: 0;
+        display: flex; align-items: center;
+      }
+      .m-typed { display: block; overflow: hidden; white-space: nowrap; width: 0; }
+      .m-caret { display: block; width: 2px; height: 22px; background: #8a4fe0; margin-left: 1px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="24" data-width="800" data-height="560"></div>
+
+    <template id="mini-template">
+      <div class="stage">
+        <div class="mini">
+          <div class="m-top">
+            <span class="m-lights"><i></i><i></i><i></i></span>
+            <span class="m-nav"><i></i><i></i><i></i></span>
+          </div>
+          <div class="m-ext"><i></i><i></i><i></i><i></i></div>
+          <div class="m-address">
+            <span class="m-url">github.com</span>
+            <div class="m-suggest"><span>github.com</span><span>Search “github”</span><span>GitHub · pull requests</span></div>
+          </div>
+          <div class="m-favs">
+            <i style="--c:#ff613d"></i><i style="--c:#37adff"></i><i style="--c:#51cd00"></i><i style="--c:#ffcb00"></i>
+            <i style="--c:#af51f5"></i><i style="--c:#00c79a"></i><i style="--c:#ff9f00"></i><i style="--c:#ff4bda"></i>
+          </div>
+          <div class="m-space" data-layout-allow-overlap>Personal</div>
+          <div class="m-row m-folder-head"><span class="m-ficon"></span>Research</div>
+          <div class="m-children">
+            <div class="m-row m-child"><span class="m-fav" style="--c:#37adff"></span>Paper draft</div>
+            <div class="m-row m-child"><span class="m-fav" style="--c:#51cd00"></span>Notes</div>
+          </div>
+          <div class="m-divider"></div>
+          <div class="m-row m-new"><span class="m-plus">+</span>New Tab</div>
+          <div class="m-row m-split">
+            <span class="m-half m-half1"><span class="m-fav" style="--c:#ff613d"></span>Docs</span>
+            <span class="m-half m-half2"><span class="m-fav" style="--c:#00c79a"></span>Chat</span>
+          </div>
+          <div class="m-row"><span class="m-fav" style="--c:#ffcb00"></span>Calendar</div>
+          <div class="m-row"><span class="m-fav" style="--c:#af51f5"></span>Design review</div>
+          <div class="m-footer"><span class="m-dot on"></span><span class="m-dot"></span><span class="m-dot"></span></div>
+        </div>
+        <div class="m-bar" data-layout-allow-overlap><span class="m-typed" data-layout-allow-overlap>github</span><span class="m-caret"></span></div>
+      </div>
+    </template>
+
+    <script>
+      // One scene per feature; each 3s and loop-safe (ends where it starts).
+      const SEG = 3;
+      const FEATURES = [
+        { id: "favorites", title: "Favorites", text: "Your most-used sites, one tab each. Drag a tab into the grid.", keys: [] },
+        { id: "spaces", title: "Spaces", text: "Separate sets of tabs, each with its own color and logins.", keys: ["⌃1", "⌃2", "⌃3"] },
+        { id: "folders", title: "Pinned folders", text: "Pin tabs to a space and group them in folders.", keys: [] },
+        { id: "command-bar", title: "Command bar", text: "New tabs start with search, sites and open tabs.", keys: ["⌘T"] },
+        { id: "address-bar", title: "Address bar", text: "Edit the address or search, right in the sidebar.", keys: ["⌥⇧L"] },
+        { id: "hide-sidebar", title: "Hide the sidebar", text: "Give the page the whole window, then bring tabs back.", keys: ["⌥⇧S"] },
+        { id: "split-view", title: "Split view", text: "Two tabs side by side show as one row.", keys: [] },
+        { id: "extensions-row", title: "Extensions row", text: "Pinned extensions sit right in the sidebar.", keys: [] },
+      ];
+
+      const root = document.getElementById("root");
+      const template = document.getElementById("mini-template");
+      FEATURES.forEach((f, i) => {
+        const scene = document.createElement("section");
+        scene.id = `scene-${f.id}`;
+        scene.className = "scene clip";
+        scene.dataset.start = String(i * SEG);
+        scene.dataset.duration = String(SEG);
+        scene.dataset.trackIndex = "1";
+        scene.appendChild(template.content.cloneNode(true));
+        const copy = document.createElement("div");
+        copy.className = "copy";
+        copy.innerHTML = `<h1></h1><p></p><div class="keys"></div>`;
+        copy.querySelector("h1").textContent = f.title;
+        copy.querySelector("p").textContent = f.text;
+        for (const k of f.keys) {
+          const key = document.createElement("span");
+          key.className = "key";
+          key.textContent = k;
+          copy.querySelector(".keys").appendChild(key);
+        }
+        scene.appendChild(copy);
+        root.appendChild(scene);
+      });
+
+      const tl = gsap.timeline({ paused: true });
+      const $ = (sel, i) => `#scene-${FEATURES[i].id} ${sel}`;
+      const back = "back.out(1.7)";
+
+      // 0 · Favorites: tiles pop in, hold, fade back to empty.
+      tl.fromTo($(".m-favs i", 0), { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: back, stagger: 0.07 }, 0.25);
+      tl.to($(".m-favs i", 0), { opacity: 0, duration: 0.3, stagger: 0.02 }, 0 * SEG + 2.55);
+
+      // 1 · Spaces: sidebar tint and active dot move through three spaces.
+      const tints = ["#e9e2f6", "#dcebf8", "#d8f1ea", "#e9e2f6"];
+      const t1 = 1 * SEG;
+      [0.35, 1.2, 2.1].forEach((at, k) => {
+        tl.to($(".mini", 1), { backgroundColor: tints[k + 1], duration: 0.45, ease: "power2.inOut" }, t1 + at);
+        const dots = document.querySelectorAll($(".m-dot", 1));
+        tl.to(dots[k % 3], { backgroundColor: "#9a93aa", opacity: 0.45, scale: 1, duration: 0.3 }, t1 + at);
+        tl.to(dots[(k + 1) % 3], { backgroundColor: "#8a4fe0", opacity: 1, scale: 1.35, duration: 0.3 }, t1 + at);
+      });
+
+      // 2 · Pinned folders: the folder opens, then closes.
+      const t2 = 2 * SEG;
+      tl.to($(".m-folder-head", 2), { backgroundColor: "rgba(255,255,255,0.6)", duration: 0.25 }, t2 + 0.35);
+      tl.to($(".m-children", 2), { height: 60, duration: 0.45, ease: "power3.out" }, t2 + 0.45);
+      tl.to($(".m-children", 2), { height: 0, duration: 0.35, ease: "power2.in" }, t2 + 2.3);
+      tl.to($(".m-folder-head", 2), { backgroundColor: "rgba(255,255,255,0)", duration: 0.25 }, t2 + 2.5);
+
+      // 3 · Command bar: New Tab lights up, the bar appears and types.
+      const t3 = 3 * SEG;
+      tl.to($(".m-new", 3), { backgroundColor: "rgba(255,255,255,0.75)", color: "#1f1a2e", duration: 0.25 }, t3 + 0.2);
+      tl.fromTo($(".m-bar", 3), { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.35, ease: back }, t3 + 0.35);
+      tl.to($(".m-typed", 3), { width: 64, duration: 0.9, ease: "steps(6)" }, t3 + 0.7);
+      tl.to($(".m-bar", 3), { opacity: 0, scale: 0.96, duration: 0.3 }, t3 + 2.45);
+      tl.set($(".m-typed", 3), { width: 0 }, t3 + 2.8);
+      tl.to($(".m-new", 3), { backgroundColor: "rgba(255,255,255,0)", color: "#5f5873", duration: 0.25 }, t3 + 2.5);
+
+      // 4 · Address bar: field focuses, suggestions drop down, close again.
+      const t4 = 4 * SEG;
+      tl.to($(".m-url", 4), { backgroundColor: "#fbfafd", boxShadow: "0 0 0 2px #8a4fe0", duration: 0.25 }, t4 + 0.3);
+      tl.to($(".m-suggest", 4), { height: 110, opacity: 1, duration: 0.4, ease: "power3.out" }, t4 + 0.45);
+      tl.to($(".m-suggest", 4), { height: 0, opacity: 0, duration: 0.3, ease: "power2.in" }, t4 + 2.35);
+      tl.to($(".m-url", 4), { backgroundColor: "rgba(0,0,0,0.06)", boxShadow: "0 0 0 0px #8a4fe0", duration: 0.25 }, t4 + 2.55);
+
+      // 5 · Hide the sidebar: it slides away and comes back.
+      const t5 = 5 * SEG;
+      tl.to($(".mini", 5), { x: -170, opacity: 0.12, duration: 0.5, ease: "power3.inOut" }, t5 + 0.4);
+      tl.to($(".mini", 5), { x: 0, opacity: 1, duration: 0.5, ease: "power3.inOut" }, t5 + 2.0);
+
+      // 6 · Split view: one row becomes two halves.
+      const t6 = 6 * SEG;
+      tl.to($(".m-split", 6), { backgroundColor: "rgba(255,255,255,0.55)", duration: 0.25 }, t6 + 0.35);
+      tl.to($(".m-half2", 6), { flexGrow: 1, opacity: 1, paddingLeft: 7, paddingRight: 7, duration: 0.45, ease: "power3.out" }, t6 + 0.45);
+      tl.to($(".m-half", 6), { backgroundColor: "rgba(255,255,255,0.8)", duration: 0.3 }, t6 + 0.6);
+      tl.to($(".m-half", 6), { backgroundColor: "rgba(255,255,255,0)", duration: 0.25 }, t6 + 2.2);
+      tl.to($(".m-half2", 6), { flexGrow: 0, opacity: 0, paddingLeft: 0, paddingRight: 0, duration: 0.35, ease: "power2.in" }, t6 + 2.3);
+      tl.to($(".m-split", 6), { backgroundColor: "rgba(255,255,255,0)", duration: 0.25 }, t6 + 2.55);
+
+      // 7 · Extensions row: tiles light up one by one.
+      const t7 = 7 * SEG;
+      tl.to($(".m-ext i", 7), { scale: 1.14, backgroundColor: "rgba(255,255,255,0.95)", duration: 0.22, ease: "power2.out", stagger: 0.09 }, t7 + 0.35);
+      tl.to($(".m-ext i", 7), { scale: 1, duration: 0.3, ease: "power2.inOut", stagger: 0.09 }, t7 + 0.6);
+      tl.to($(".m-ext i", 7), { backgroundColor: "rgba(255,255,255,0.35)", duration: 0.3, stagger: 0.03 }, t7 + 2.4);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

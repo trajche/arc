@@ -12,14 +12,58 @@ With a small one-time setup it replaces Firefox's tab strip and toolbar, so the 
 
 ## Features
 
-- **Favorites.** A grid of icons at the top. Each favorite owns one tab: click to switch to it, or reopen it if you closed it. Favorites belong to a container, like Arc's per-profile favorites.
-- **Spaces.** Separate sets of tabs with their own name, emoji and color. Switch from the footer, with a two-finger swipe, or `⌃1`–`⌃5` (`Alt+Shift+1`–`5`). A space can use its own Firefox container, so it keeps separate logins.
-- **Pinned tabs and folders.** Pin tabs to a space; they stay in the sidebar when closed. Shift- or Command-click to select several, right-click → *New Folder*. The pinned section folds away under the space name.
-- **Command bar.** `⌘T` / `Ctrl+T` opens a search box instead of a blank page: addresses, searches, open tabs, history.
-- **Address bar in the sidebar.** Shows the site you're on; click to edit or search. `⌥⇧L` / `Alt+Shift+L`.
-- **Hide the sidebar.** `⌥⇧S` / `Alt+Shift+S` gives the page the whole window.
-- **Split view.** Firefox's split tabs show as one row. Create and separate them with Firefox's own shortcuts (set them in `about:keyboard`).
-- **Import from Arc.** Brings over spaces, pinned tabs, folders and favorites. Each Arc profile becomes a Firefox container.
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/features/favorites.gif" alt="Favorites" width="100%"><br>
+      <b>Favorites</b><br>
+      A grid of icons at the top. Each favorite owns one tab: click to switch to it, or reopen it if you closed it. Favorites belong to a container, like Arc's per-profile favorites.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/features/spaces.gif" alt="Spaces" width="100%"><br>
+      <b>Spaces</b><br>
+      Separate sets of tabs with their own name, emoji and color. Switch from the footer, with a two-finger swipe, or <code>⌃1</code>–<code>⌃5</code> (<code>Alt+Shift+1</code>–<code>5</code>). A space can use its own Firefox container, so it keeps separate logins.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/features/folders.gif" alt="Pinned tabs and folders" width="100%"><br>
+      <b>Pinned tabs and folders</b><br>
+      Pin tabs to a space; they stay when closed. Shift- or Command-click to select several, right-click → <i>New Folder</i>. The pinned section folds away under the space name.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/features/command-bar.gif" alt="Command bar" width="100%"><br>
+      <b>Command bar</b><br>
+      <code>⌘T</code> / <code>Ctrl+T</code> opens a search box instead of a blank page: addresses, searches, open tabs, history.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/features/address-bar.gif" alt="Address bar in the sidebar" width="100%"><br>
+      <b>Address bar in the sidebar</b><br>
+      Shows the site you're on; click to edit or search. <code>⌥⇧L</code> / <code>Alt+Shift+L</code>.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/features/hide-sidebar.gif" alt="Hide the sidebar" width="100%"><br>
+      <b>Hide the sidebar</b><br>
+      <code>⌥⇧S</code> / <code>Alt+Shift+S</code> gives the page the whole window. Press it again to bring your tabs back.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/features/split-view.gif" alt="Split view" width="100%"><br>
+      <b>Split view</b><br>
+      Firefox's split tabs show as one row. Create and separate them with Firefox's own shortcuts (set them in <code>about:keyboard</code>).
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/features/extensions-row.gif" alt="Extensions row" width="100%"><br>
+      <b>Extensions row</b><br>
+      Your pinned extensions sit in the sidebar, under the window buttons, once the layout setup is done.
+    </td>
+  </tr>
+</table>
+
+**Import from Arc.** Brings over spaces, pinned tabs, folders and favorites. Each Arc profile becomes a Firefox container.
 
 Shortcuts can be changed in `about:addons` → ⚙ → *Manage Extension Shortcuts*.
 
@@ -65,6 +109,7 @@ npm run lint
 The dev profile loads Arc unsigned, straight from this folder, and links `extras/userChrome.css` into the profile. Code changes need `npm run reload`; `userChrome.css` changes need a Developer Edition restart. Release Firefox only runs signed add-ons.
 
 - `npm run build:setup` regenerates `extras/setup/` from `extras/userChrome.css` and `extras/user.js`. Run it after changing either.
+- `npm run build:gifs` re-renders the feature animations (HyperFrames project in `videos/arc-feature-loops`) and slices them into `docs/features/`.
 - `npm run sign` bumps the version and signs an unlisted build with addons.mozilla.org. It reads `WEB_EXT_API_KEY` / `WEB_EXT_API_SECRET` from `.env` (git-ignored).
 
 | Path | What |

@@ -1,0 +1,10 @@
+{
+  "category": "webpage",
+  "asset_needs": [],
+  "source": "Arc for Firefox welcome page miniature sidebar (welcome/welcome.html + welcome.css) — our own UI, no search",
+  "canvas": { "width": 800, "height": 560, "fps": 30 },
+  "duration": 24,
+  "brief": "Eight 3-second, loop-safe segments, one per feature. Left: the miniature Arc sidebar from the welcome page; right: feature name + one line + shortcut. Each segment starts and ends in the same rest state so each 3s slice loops cleanly as a README GIF. Motion answers the feature: favorites pop in, space tint cycles, folder opens, command bar types, address suggestions drop, sidebar slides away, row splits in two, extension tiles light up.",
+  "segments": ["favorites", "spaces", "folders", "command-bar", "address-bar", "hide-sidebar", "split-view", "extensions-row"],
+  "output": "renders/video.mp4, then ffmpeg-sliced into docs/features/<segment>.gif"
+}

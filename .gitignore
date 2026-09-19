@@ -5,3 +5,9 @@
 node_modules/
 web-ext-artifacts/
 .DS_Store
+
+# HyperFrames render output (the README GIFs are sliced into docs/features/)
+videos/*/renders/
+videos/*/snapshots/
+videos/*/node_modules/
+videos/*/.media/
