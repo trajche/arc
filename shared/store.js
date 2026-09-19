@@ -431,7 +431,7 @@ const ArcFox = (() => {
   async function adoptTab(tabId) {
     if ((await getTabItem(tabId)) || (await getTabSpace(tabId))) return;
     const tab = await browser.tabs.get(tabId).catch(() => null);
-    if (!tab) return;
+    if (!tab || tab.incognito) return; // private tabs belong to no space
     const state = await getState();
     let spaceId = tab.openerTabId !== undefined ? await getTabSpace(tab.openerTabId) : null;
     if (!state.spaces.some((s) => s.id === spaceId)) spaceId = await getWindowSpace(tab.windowId, state);

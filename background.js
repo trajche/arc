@@ -58,6 +58,7 @@ function createMenus() {
 async function initWindows() {
   const state = await ArcFox.getState();
   for (const win of await browser.windows.getAll({ populate: true, windowTypes: ["normal"] })) {
+    if (win.incognito) continue; // private windows show tabs only
     const spaceId = await ArcFox.getWindowSpace(win.id, state);
     for (const tab of win.tabs) {
       if (tab.pinned) {
@@ -119,6 +120,17 @@ browser.tabs.onCreated.addListener((tab) => {
  * ready for typing.
  */
 async function handleNewTabPage(tab) {
+  if (tab.incognito) {
+    // Private windows have no spaces or containers: a plain command-bar tab.
+    await browser.tabs.create({
+      url: browser.runtime.getURL("palette/palette.html"),
+      windowId: tab.windowId,
+      index: tab.index,
+      active: tab.active,
+    });
+    await browser.tabs.remove(tab.id);
+    return;
+  }
   const state = await ArcFox.getState();
   let spaceId = await ArcFox.getTabSpace(tab.id);
   if (!state.spaces.some((s) => s.id === spaceId)) spaceId = await ArcFox.getWindowSpace(tab.windowId, state);
@@ -143,6 +155,8 @@ browser.tabs.onRemoved.addListener(() => {
 });
 
 browser.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
+  const tab = await browser.tabs.get(tabId).catch(() => null);
+  if (!tab || tab.incognito) return; // private windows keep no spaces
   const state = await ArcFox.getState();
   const itemId = await ArcFox.getTabItem(tabId);
   if (itemId && state.favorites.some((f) => f.id === itemId)) return;
@@ -156,7 +170,7 @@ browser.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
 browser.tabs.onUpdated.addListener(
   async (tabId, change, tab) => {
     if (change.pinned) {
-      await ArcFox.convertNativePin(tab);
+      if (!tab.incognito) await ArcFox.convertNativePin(tab);
       return;
     }
     if (change.favIconUrl) {

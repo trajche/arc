@@ -604,3 +604,14 @@ body.pins-collapsed #pinned { display: none; }
 .tab.blank .title { color: var(--muted); }
 .tab.blank.active .title, .tab.blank.active .favicon { color: var(--fg); }
 #today.only-blank .tab.blank .close { display: none; }
+
+/* ---------- Private window: tabs only ---------- */
+
+body.private #favorites,
+body.private #pinned,
+body.private #spaces,
+body.private .space-head .chevron,
+body.private .space-head .space-more { display: none; }
+body.private .space-head { cursor: default; }
+body.private .space-head:hover { background: none; }
+body.private .scroll { padding-bottom: 12px; }

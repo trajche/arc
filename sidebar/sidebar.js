@@ -20,6 +20,7 @@ const els = {
 
 const state = {
   windowId: null,
+  private: false,
   spaceId: null,
   spaces: [],
   favorites: [], // this space's favorites (its container's list)
@@ -50,7 +51,10 @@ function spaceOf(tab) {
 }
 
 function newTabInSpace(url) {
-  return ArcFox.createTabInSpace(state.windowId, space(), { url }).then((tab) => {
+  const create = state.private
+    ? browser.tabs.create({ windowId: state.windowId, active: true, ...(url ? { url } : {}) })
+    : ArcFox.createTabInSpace(state.windowId, space(), { url });
+  return create.then((tab) => {
     schedule(true);
     return tab;
   });
@@ -97,12 +101,12 @@ async function refresh() {
         state.tabItem = result.tabItem;
         state.tabSpace = result.tabSpace;
       }
-      state.spaceId = await ArcFox.getWindowSpace(state.windowId, st);
+      state.spaceId = state.private ? null : await ArcFox.getWindowSpace(state.windowId, st);
       state.spaces = st.spaces;
       // Favorites of this space's container (Arc: per profile).
       state.favKey = ArcFox.favKey(st.spaces.find((x) => x.id === state.spaceId));
-      state.favorites = st.favLists.get(state.favKey) || [];
-      state.pins = st.pins.get(state.spaceId) || [];
+      state.favorites = state.private ? [] : st.favLists.get(state.favKey) || [];
+      state.pins = state.private ? [] : st.pins.get(state.spaceId) || [];
       state.icons = icons;
 
       const itemIds = new Set([...st.favorites, ...[...st.pins.values()].flat()].map((i) => i.id));
@@ -125,6 +129,7 @@ async function refresh() {
 /* ---------- Rendering ---------- */
 
 function render() {
+  if (state.private) return renderPrivate();
   const sp = space();
   const color = ArcFox.COLORS[sp?.color] || ArcFox.COLORS.purple;
   document.documentElement.style.setProperty("--space", color);
@@ -327,7 +332,7 @@ function tabEl(tab, make) {
 }
 
 function renderToday() {
-  const all = state.tabs.filter((t) => !state.tabItem.has(t.id) && spaceOf(t) === state.spaceId);
+  const all = state.tabs.filter((t) => !state.tabItem.has(t.id) && (state.private || spaceOf(t) === state.spaceId));
   // Blank new tabs go right under the "+ New Tab" button, like Arc.
   const tabs = [...all.filter(isBlankTab), ...all.filter((t) => !isBlankTab(t))];
   // The "+ New Tab" button only shows while Today is empty; otherwise Cmd+T.
@@ -377,6 +382,18 @@ const favHint = [
     "✕"
   ),
 ];
+
+/** Private window: just the tab list (Arc's Incognito sidebar). */
+function renderPrivate() {
+  document.documentElement.style.setProperty("--space", ArcFox.COLORS.purple);
+  els.spaceName.textContent = "Private window";
+  els.spaceIcon.hidden = true;
+  renderToday();
+  applySelection();
+  address.update(activeTab());
+  $("back").disabled = !activeTab();
+  $("forward").disabled = !activeTab();
+}
 
 /* ---------- Modules ---------- */
 
@@ -1006,7 +1023,11 @@ for (const ev of ["onActivated", "onMoved", "onAttached", "onDetached"]) {
 }
 
 (async () => {
-  state.windowId = (await browser.windows.getCurrent()).id;
+  const win = await browser.windows.getCurrent();
+  state.windowId = win.id;
+  // Private windows show tabs only — no favorites, pins, folders or spaces.
+  state.private = win.incognito;
+  document.body.classList.toggle("private", state.private);
   await refresh();
   const { focusAddress } = await browser.storage.session.get("focusAddress");
   if (focusAddress === state.windowId) {
