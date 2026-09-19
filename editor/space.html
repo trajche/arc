@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Space</title>
+  <link rel="icon" href="../icons/icon-32.png">
+  <link rel="stylesheet" href="space.css">
+</head>
+<body>
+  <form id="form" class="card" autocomplete="off">
+    <label class="field">
+      <span class="label">Name</span>
+      <input id="name" name="name" required placeholder="e.g. Work" maxlength="40">
+    </label>
+
+    <div class="field">
+      <span class="label">Icon</span>
+      <div id="emojis" class="emojis" role="radiogroup"></div>
+      <div id="picker" class="picker" hidden>
+        <input id="emoji-search" class="emoji-search" type="search" placeholder="Search emoji" autocomplete="off">
+        <div id="picker-grid" class="picker-grid"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label">Color</span>
+      <div id="colors" class="colors" role="radiogroup"></div>
+    </div>
+
+    <label id="container-field" class="field">
+      <span class="label">Container</span>
+      <select id="container" name="container"></select>
+      <span id="container-hint" class="hint"></span>
+    </label>
+
+    <footer class="actions">
+      <button type="button" id="delete" class="delete" hidden>Delete Space</button>
+      <span class="spacer"></span>
+      <button type="button" id="cancel">Cancel</button>
+      <button type="submit" id="save" class="primary">Save</button>
+    </footer>
+  </form>
+
+  <script src="../shared/store.js"></script>
+  <script type="module" src="space.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import from Arc</title>
+  <link rel="icon" href="../icons/icon-32.png">
+  <link rel="stylesheet" href="import.css">
+</head>
+<body>
+  <main class="page">
+    <header>
+      <img class="logo" src="../icons/icon-128.png" alt="" width="56" height="56">
+      <h1>Bring your Arc sidebar over</h1>
+      <p class="lede">Spaces, pinned tabs, folders and favorites come across. Each Arc profile becomes a Firefox container, so its spaces keep separate logins. You’ll sign in to sites again once; Arc’s passwords and cookies can’t be read by Firefox.</p>
+    </header>
+
+    <section class="pick">
+      <div class="file">
+        <label class="btn" for="sidebar-file">Choose StorableSidebar.json</label>
+        <input id="sidebar-file" type="file" accept=".json,application/json" hidden>
+        <span class="chosen" id="sidebar-name"></span>
+        <p class="where">
+          It’s in <code class="path" data-mac="~/Library/Application Support/Arc/StorableSidebar.json" data-win="%LOCALAPPDATA%\Packages\TheBrowserCompany.Arc_…\LocalCache\Local\Arc\StorableSidebar.json"></code>
+          <button class="link" data-copy-path>Copy path</button>
+          <span class="tip" data-os="mac">In the file window, press <kbd>⌘⇧G</kbd> and paste it.</span>
+        </p>
+      </div>
+
+      <div class="file">
+        <label class="btn secondary" for="state-file">Choose Local State (optional)</label>
+        <input id="state-file" type="file" hidden>
+        <span class="chosen" id="state-name"></span>
+        <p class="where">Gives containers your Arc profile names. It’s the file named <code>Local State</code> in Arc’s <code>User Data</code> folder, next to the one above.</p>
+      </div>
+      <p class="error" id="error" hidden></p>
+    </section>
+
+    <section class="preview" id="preview" hidden>
+      <h2>Profiles become containers</h2>
+      <div id="profiles" class="profiles"></div>
+
+      <h2>Spaces</h2>
+      <div id="spaces" class="spaces"></div>
+
+      <label class="favs"><input type="checkbox" id="favs" checked> <span id="favs-label"></span></label>
+      <label class="favs replace"><input type="checkbox" id="replace"> <span>Replace my current spaces, pinned tabs and favorites (for importing again)</span></label>
+
+      <div class="go">
+        <button class="btn" id="import">Import</button>
+        <span id="status" class="status"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="../shared/store.js"></script>
+  <script type="module" src="import.js"></script>
+</body>
+</html>

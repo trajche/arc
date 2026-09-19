@@ -1,0 +1,130 @@
+{
+  "manifest_version": 3,
+  "name": "Arc",
+  "version": "0.3.22",
+  "description": "Arc-style sidebar for Firefox: favorites, spaces with containers, pinned tabs and a sidebar address bar.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "arc@sidebar",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "tabs",
+    "tabHide",
+    "storage",
+    "sessions",
+    "menus",
+    "menus.overrideContext",
+    "clipboardWrite",
+    "contextualIdentities",
+    "cookies",
+    "history",
+    "search",
+    "topSites"
+  ],
+  "background": {
+    "scripts": [
+      "shared/store.js",
+      "background.js"
+    ]
+  },
+  "action": {
+    "default_title": "Toggle Arc sidebar",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "sidebar_action": {
+    "default_title": "Arc",
+    "default_panel": "sidebar/sidebar.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
+    "open_at_install": true
+  },
+  "commands": {
+    "_execute_sidebar_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+A"
+      },
+      "description": "Open the Arc sidebar panel"
+    },
+    "focus-address": {
+      "suggested_key": {
+        "default": "Alt+Shift+L"
+      },
+      "description": "Focus the Arc address bar"
+    },
+    "add-favorite": {
+      "suggested_key": {
+        "default": "Alt+Shift+D"
+      },
+      "description": "Add current tab to Favorites"
+    },
+    "next-space": {
+      "description": "Switch to next space"
+    },
+    "prev-space": {
+      "description": "Switch to previous space"
+    },
+    "space-1": {
+      "suggested_key": {
+        "default": "Alt+Shift+1",
+        "mac": "MacCtrl+1"
+      },
+      "description": "Switch to space 1"
+    },
+    "space-2": {
+      "suggested_key": {
+        "default": "Alt+Shift+2",
+        "mac": "MacCtrl+2"
+      },
+      "description": "Switch to space 2"
+    },
+    "space-3": {
+      "suggested_key": {
+        "default": "Alt+Shift+3",
+        "mac": "MacCtrl+3"
+      },
+      "description": "Switch to space 3"
+    },
+    "space-4": {
+      "suggested_key": {
+        "default": "Alt+Shift+4",
+        "mac": "MacCtrl+4"
+      },
+      "description": "Switch to space 4"
+    },
+    "space-5": {
+      "suggested_key": {
+        "default": "Alt+Shift+5",
+        "mac": "MacCtrl+5"
+      },
+      "description": "Switch to space 5"
+    },
+    "toggle-sidebar": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Show/hide the Arc sidebar"
+    }
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab/newtab.html"
+  }
+}

@@ -1,0 +1,4 @@
+/* Plain background while Arc swaps this tab for the command bar. */
+html {
+  background: color-mix(in srgb, var(--space) var(--tint), var(--base));
+}

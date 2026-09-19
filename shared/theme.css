@@ -1,0 +1,42 @@
+/* Color tokens shared by the sidebar and the space editor. */
+:root {
+  --space: #af51f5; /* set per space from JS */
+  --base: #efedf5;
+  --fg: #1d1b24;
+  --muted: #6d6879;
+  --tile: rgba(255, 255, 255, 0.22);
+  --tile-hover: rgba(0, 0, 0, 0.05);
+  --tile-active: #ffffff;
+  --row-hover: rgba(0, 0, 0, 0.06);
+  --row-active: rgba(255, 255, 255, 0.78);
+  --field: rgba(0, 0, 0, 0.055);
+  --field-focus: rgba(255, 255, 255, 0.9);
+  --shadow: 0 1px 3px rgba(20, 10, 40, 0.14), 0 0 0 0.5px rgba(20, 10, 40, 0.06);
+  --menu-bg: #ffffff;
+  --divider: rgba(20, 10, 40, 0.1);
+  --tint: 16%;
+  --btn-hover: rgba(0, 0, 0, 0.08);
+  --radius: 10px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --base: #1c1a22;
+    --fg: #ece9f3;
+    --muted: #9b95a8;
+    --tile: rgba(255, 255, 255, 0.06);
+    --tile-hover: rgba(255, 255, 255, 0.11);
+    --tile-active: rgba(255, 255, 255, 0.18);
+    --row-hover: rgba(255, 255, 255, 0.07);
+    --row-active: rgba(255, 255, 255, 0.14);
+    --field: rgba(255, 255, 255, 0.07);
+    --field-focus: rgba(255, 255, 255, 0.13);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --menu-bg: #2a2733;
+    --divider: rgba(255, 255, 255, 0.08);
+    --tint: 12%;
+    --btn-hover: rgba(255, 255, 255, 0.1);
+    color-scheme: dark;
+  }
+}

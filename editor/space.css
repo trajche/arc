@@ -1,0 +1,124 @@
+@import url("../shared/theme.css");
+
+* { box-sizing: border-box; }
+
+html { background: var(--menu-bg); }
+
+body {
+  margin: 0;
+  color: var(--fg);
+  font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px 20px;
+}
+
+.dot {
+  display: block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--space);
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.hint { font-size: 11.5px; color: var(--muted); }
+
+input#name, select {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--divider);
+  border-radius: 9px;
+  background: var(--field);
+}
+input:focus, select:focus { outline: 2px solid var(--space); outline-offset: -1px; }
+
+.emojis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 4px;
+}
+.emoji {
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+.emoji:hover { background: var(--row-hover); }
+.emoji.selected { background: color-mix(in srgb, var(--space) 25%, transparent); box-shadow: inset 0 0 0 2px var(--space); }
+.emoji.none .dot { background: var(--muted); }
+
+.colors { display: flex; justify-content: space-between; gap: 6px; }
+.color {
+  width: 28px; height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c);
+  padding: 0;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.08);
+  transition: transform 100ms;
+}
+.color:hover { transform: scale(1.1); }
+.color.selected { box-shadow: 0 0 0 2px var(--menu-bg), 0 0 0 4px var(--c); }
+
+.actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.spacer { flex: 1; }
+.actions button {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--divider);
+  border-radius: 9px;
+  background: none;
+}
+.actions button:hover { background: var(--row-hover); }
+.actions .primary { border: 0; background: var(--space); color: #fff; font-weight: 600; }
+.actions .primary:hover { background: color-mix(in srgb, var(--space) 85%, #000); }
+.actions .delete { border: 0; padding: 0 6px; color: #e5484d; }
+.actions .delete.armed { background: #e5484d; color: #fff; padding: 0 12px; }
+
+.emoji.more { font-size: 14px; color: var(--muted); border: 1px dashed var(--divider); }
+
+/* Full emoji picker */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+}
+.picker[hidden] { display: none; }
+.emoji-search {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--fg);
+  font: inherit;
+}
+.emoji-search:focus { outline: 2px solid var(--space); outline-offset: -1px; }
+.picker-grid { height: 240px; overflow-y: auto; }
+.picker-group {
+  position: sticky;
+  top: 0;
+  padding: 6px 2px 4px;
+  background: var(--menu-bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.picker-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 2px; }
+.picker-empty { padding: 20px; text-align: center; color: var(--muted); }

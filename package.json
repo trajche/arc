@@ -1,0 +1,24 @@
+{
+  "name": "arc-for-firefox",
+  "version": "0.3.22",
+  "private": true,
+  "description": "Arc-style sidebar for Firefox: favorites, spaces with containers, pinned tabs, folders and a command bar.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:trajche/arc.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "open -na \"Firefox Developer Edition\" --args --profile \"$HOME/Library/Application Support/Firefox/Profiles/arc-dev\" --start-debugger-server 6005",
+    "lint": "web-ext lint",
+    "build": "web-ext build --overwrite-dest",
+    "sign": "./sign.sh",
+    "reload": "node scripts/reload.mjs",
+    "build:setup": "node scripts/build-setup.mjs",
+    "setup-dev": "bash scripts/setup-dev-profile.sh"
+  },
+  "devDependencies": {
+    "web-ext": "^8.0.0"
+  }
+}

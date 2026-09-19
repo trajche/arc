@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome to Arc</title>
+  <link rel="icon" href="../icons/icon-32.png">
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <main class="page">
+    <aside class="stage" aria-hidden="true">
+      <!-- A miniature of the Arc sidebar; hovering a feature animates its part. -->
+      <div class="mini" id="mini">
+        <div class="m-top">
+          <span class="m-lights"><i></i><i></i><i></i></span>
+          <span class="m-nav"><i></i><i></i><i></i></span>
+        </div>
+        <div class="m-ext"><i></i><i></i><i></i><i></i></div>
+        <div class="m-address">
+          <span class="m-url">github.com</span>
+          <div class="m-suggest">
+            <b>github.com</b><span>Search “github”</span><span>GitHub · pull requests</span>
+          </div>
+        </div>
+        <div class="m-favs">
+          <i style="--c:#ff613d"></i><i style="--c:#37adff"></i><i style="--c:#51cd00"></i><i style="--c:#ffcb00"></i>
+          <i style="--c:#af51f5"></i><i style="--c:#00c79a"></i><i style="--c:#ff9f00"></i><i style="--c:#ff4bda"></i>
+        </div>
+        <div class="m-space">Personal</div>
+        <div class="m-folder">
+          <div class="m-row m-folder-head"><span class="m-ficon"></span>Research</div>
+          <div class="m-children">
+            <div class="m-row m-child"><span class="m-fav" style="--c:#37adff"></span>Paper draft</div>
+            <div class="m-row m-child"><span class="m-fav" style="--c:#51cd00"></span>Notes</div>
+          </div>
+        </div>
+        <div class="m-divider"></div>
+        <div class="m-row m-new"><span class="m-plus">+</span>New Tab</div>
+        <div class="m-row m-split">
+          <span class="m-half"><span class="m-fav" style="--c:#ff613d"></span>Docs</span>
+          <span class="m-half"><span class="m-fav" style="--c:#00c79a"></span>Chat</span>
+        </div>
+        <div class="m-row"><span class="m-fav" style="--c:#ffcb00"></span>Calendar</div>
+        <div class="m-row"><span class="m-fav" style="--c:#af51f5"></span>Design review</div>
+        <div class="m-footer">
+          <span class="m-spacer"></span>
+          <span class="m-dots"><i class="on"></i><i></i><i></i></span>
+          <span class="m-add">+</span>
+        </div>
+      </div>
+      <div class="m-bar"><span class="m-caret">github</span></div>
+    </aside>
+
+    <section class="copy">
+      <header class="intro">
+        <img class="logo" src="../icons/icon-128.png" alt="" width="64" height="64">
+        <h1>Arc, in Firefox</h1>
+        <p>Your tabs live in the sidebar now. Hover a feature to see where it lives.</p>
+        <p class="from-arc">Coming from Arc? <a href="../import/import.html">Import your spaces, pinned tabs and favorites</a>.</p>
+      </header>
+
+      <div class="features">
+        <div class="feature" tabindex="0" data-demo="favs">
+          <h2>Favorites</h2>
+          <p>Drag a tab into the grid at the top. Each favorite keeps its own tab, and closing it leaves the icon in place.</p>
+        </div>
+
+        <div class="feature" tabindex="0" data-demo="spaces">
+          <h2>Spaces</h2>
+          <p>Separate sets of tabs, each with its own color and, if you want, its own logins. Switch from the footer, by swiping, or with <kbd>⌃1</kbd>–<kbd>⌃5</kbd>.</p>
+        </div>
+
+        <div class="feature" tabindex="0" data-demo="folders">
+          <h2>Pinned tabs and folders</h2>
+          <p>Drag tabs above the line to pin them to a space. Shift- or Command-click several, then right-click and choose New Folder.</p>
+        </div>
+
+        <div class="feature" tabindex="0" data-demo="bar">
+          <h2>Command bar</h2>
+          <p><kbd>⌘T</kbd> opens a search box instead of a blank page. Type a site, a search, or the name of an open tab.</p>
+        </div>
+
+        <div class="feature" tabindex="0" data-demo="address">
+          <h2>Address bar in the sidebar</h2>
+          <p>Shows the site you’re on. Click it to edit the address or search. <kbd>⌥⇧L</kbd> jumps there.</p>
+        </div>
+
+        <div class="feature" tabindex="0" data-demo="hide">
+          <h2>Hide the sidebar</h2>
+          <p><kbd>⌥⇧S</kbd> gives the page the whole window. Press it again to bring your tabs back.</p>
+        </div>
+
+        <div class="feature" tabindex="0" data-demo="split">
+          <h2>Split view</h2>
+          <p>Two tabs side by side show as one row. Add one with Firefox’s Add Split View shortcut, which you can set in <code>about:keyboard</code>.</p>
+        </div>
+
+        <div class="feature" tabindex="0" data-demo="ext">
+          <h2>Extensions row</h2>
+          <p>Your pinned extensions sit under the window buttons, once the layout below is set up.</p>
+        </div>
+      </div>
+
+      <section class="setup" aria-labelledby="setup-title">
+        <h2 id="setup-title">Give Arc the whole window</h2>
+        <p class="setup-lede">Firefox doesn’t let extensions hide its own tab strip and toolbar. A small setup script does it once: it finds the Firefox profile with Arc and adds Arc’s layout, keeping any customizations you already have.</p>
+
+        <div class="script" data-os="unix">
+          <a class="copy-btn" href="../extras/setup/arc-setup.sh.txt" download="arc-setup.sh">Download setup script</a>
+          <p>Then run it in Terminal and restart Firefox:</p>
+          <pre><code>bash ~/Downloads/arc-setup.sh</code></pre>
+        </div>
+        <div class="script" data-os="windows" hidden>
+          <a class="copy-btn" href="../extras/setup/arc-setup.ps1" download="arc-setup.ps1">Download setup script</a>
+          <p>Then run it in PowerShell and restart Firefox:</p>
+          <pre><code>powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\arc-setup.ps1"</code></pre>
+        </div>
+        <p class="script-note">Run it again after updating Arc to refresh the layout. Add <code>--uninstall</code> (<code>-Uninstall</code> on Windows) to remove it.</p>
+
+        <details class="manual">
+          <summary>Set it up by hand instead</summary>
+          <ol class="steps">
+            <li>
+              <p>Press <kbd>⌘L</kbd> to open Firefox’s address bar, go to <code>about:config</code>, search for <code>toolkit.legacyUserProfileCustomizations.stylesheets</code> and set it to <b>true</b>.</p>
+            </li>
+            <li>
+              <p>The same way, go to <code>about:support</code> and click <b>Open Folder</b> next to Profile Folder.</p>
+            </li>
+            <li>
+              <p>In that folder, create a folder named <code>chrome</code>. Inside it, save a file named <code>userChrome.css</code> with this content:</p>
+              <button class="copy-btn" data-file="../extras/userChrome.css">Copy userChrome.css</button>
+            </li>
+            <li>
+              <p>Back in the profile folder, save a file named <code>user.js</code> with this content. It opens Arc at startup and turns on horizontal tabs:</p>
+              <button class="copy-btn" data-file="../extras/user.js">Copy user.js</button>
+            </li>
+            <li>
+              <p>Quit Firefox with <kbd>⌘Q</kbd> and open it again.</p>
+            </li>
+          </ol>
+        </details>
+      </section>
+    </section>
+  </main>
+
+  <script src="welcome.js"></script>
+</body>
+</html>

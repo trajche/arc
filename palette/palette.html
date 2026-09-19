@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>New Tab</title>
+  <link rel="stylesheet" href="palette.css">
+</head>
+<body>
+  <div class="bar">
+    <div class="field">
+      <span id="field-icon" class="field-icon">
+        <svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </span>
+      <input id="q" type="text" spellcheck="false" autocomplete="off" placeholder="Search or Enter URL…">
+      <span id="hint" class="hint"></span>
+    </div>
+    <ul id="list" class="list"></ul>
+  </div>
+
+  <script src="../shared/store.js"></script>
+  <script type="module" src="palette.js"></script>
+</body>
+</html>
