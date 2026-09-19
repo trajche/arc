@@ -299,6 +299,9 @@ function renderPinned() {
 }
 
 // splitViewId is -1 (tabs.SPLIT_VIEW_ID_NONE) when the tab isn't in a Firefox split view.
+/** A blank "New Tab": Firefox/Arc new-tab pages, the command bar, or about:blank. */
+const isBlankTab = (tab) => ArcFox.isNewTabUrl(tab.url) || tab.url === "about:blank";
+
 const inSplit = (tab) => tab.splitViewId !== undefined && tab.splitViewId !== -1;
 
 function tabEl(tab, make) {
@@ -309,9 +312,10 @@ function tabEl(tab, make) {
   }
   el.dataset.sel = `t:${tab.id}`;
   // Blank tabs (Cmd+T, command bar) look like the "+ New Tab" row.
-  const blank = ArcFox.isNewTabUrl(tab.url);
+  const blank = isBlankTab(tab);
   el.classList.toggle("blank", blank);
   fillRow(el, tab, { title: blank ? "New Tab" : tab.title || tab.url, url: tab.url, icon: tab.favIconUrl });
+  if (blank) el.classList.remove("loading"); // a blank row never spins
   if (blank) {
     const box = el.querySelector(".favicon");
     if (box.dataset.src !== "plus") {
@@ -325,11 +329,11 @@ function tabEl(tab, make) {
 function renderToday() {
   const all = state.tabs.filter((t) => !state.tabItem.has(t.id) && spaceOf(t) === state.spaceId);
   // Blank new tabs go right under the "+ New Tab" button, like Arc.
-  const tabs = [...all.filter((t) => ArcFox.isNewTabUrl(t.url)), ...all.filter((t) => !ArcFox.isNewTabUrl(t.url))];
+  const tabs = [...all.filter(isBlankTab), ...all.filter((t) => !isBlankTab(t))];
   // The "+ New Tab" button only shows while Today is empty; otherwise Cmd+T.
   els.newTab.hidden = all.length > 0;
   // A lone blank tab has nothing to close into: no ✕ on it.
-  els.today.classList.toggle("only-blank", all.length === 1 && ArcFox.isNewTabUrl(all[0].url));
+  els.today.classList.toggle("only-blank", all.length === 1 && isBlankTab(all[0]));
   const nodes = [];
   const splitKeys = new Set();
   for (let i = 0; i < tabs.length; i++) {

@@ -67,6 +67,13 @@ async function initWindows() {
       }
     }
     await ArcFox.syncVisibility(win.id);
+    // Blank tabs restored before Arc was listening missed their hand-off to
+    // the command bar (handleNewTabPage); do it now.
+    const palette = browser.runtime.getURL("palette/");
+    for (const tab of win.tabs) {
+      const blank = ArcFox.isNewTabUrl(tab.url) || tab.url === "about:blank";
+      if (blank && !tab.url.startsWith(palette)) await handleNewTabPage(tab).catch(() => {});
+    }
     if (await browser.sessions.getWindowValue(win.id, HIDDEN_VALUE).catch(() => false)) {
       await applySidebarHidden(win.id, true);
     }
