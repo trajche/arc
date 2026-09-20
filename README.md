@@ -71,7 +71,7 @@ Shortcuts can be changed in `about:addons` → ⚙ → *Manage Extension Shortcu
 
 Arc for Firefox needs **Firefox 140 or newer**.
 
-1. Download the latest signed `.xpi` from [Releases](https://github.com/trajche/arc/releases) and open it in Firefox.
+1. Download the latest signed `.xpi` from [Releases](https://github.com/trajche/arc/releases) and open it in Firefox. It updates itself from there (Firefox checks daily; `about:addons` → ⚙ → *Check for Updates* forces it).
 2. **Give Arc the whole window** (hides Firefox's tab strip and toolbar). Run the setup script for your system. It finds the Firefox profile with Arc and adds Arc's layout, keeping any customizations you already have:
    - **macOS / Linux:** `bash arc-setup.sh` ([`extras/setup/arc-setup.sh.txt`](extras/setup/arc-setup.sh.txt), or download it from the welcome page)
    - **Windows:** `powershell -ExecutionPolicy Bypass -File arc-setup.ps1` ([`extras/setup/arc-setup.ps1`](extras/setup/arc-setup.ps1))
@@ -111,6 +111,7 @@ The dev profile loads Arc unsigned, straight from this folder, and links `extras
 - `npm run build:setup` regenerates `extras/setup/` from `extras/userChrome.css` and `extras/user.js`. Run it after changing either.
 - `npm run build:gifs` re-renders the feature animations (HyperFrames project in `videos/arc-feature-loops`) and slices them into `docs/features/`.
 - `npm run sign` bumps the version and signs an unlisted build with addons.mozilla.org. It reads `WEB_EXT_API_KEY` / `WEB_EXT_API_SECRET` from `.env` (git-ignored).
+- `npm run release` signs a build, publishes it as a GitHub release, and points `updates.json` at it so installed copies update themselves. Needs the `gh` CLI and a clean git tree.
 
 | Path | What |
 |---|---|

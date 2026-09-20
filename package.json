@@ -17,7 +17,8 @@
     "reload": "node scripts/reload.mjs",
     "build:setup": "node scripts/build-setup.mjs",
     "setup-dev": "bash scripts/setup-dev-profile.sh",
-    "build:gifs": "bash scripts/build-feature-gifs.sh"
+    "build:gifs": "bash scripts/build-feature-gifs.sh",
+    "release": "bash scripts/release.sh"
   },
   "devDependencies": {
     "web-ext": "^8.0.0"

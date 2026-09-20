@@ -5,6 +5,7 @@ export default {
     ".gitignore",
     "scripts",
     "docs",
+    "updates.json",
     "videos",
     "sign.sh",
     "package.json",

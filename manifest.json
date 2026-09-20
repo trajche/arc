@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Arc",
-  "version": "0.3.22",
+  "version": "0.3.24",
   "description": "Arc-style sidebar for Firefox: favorites, spaces with containers, pinned tabs and a sidebar address bar.",
   "browser_specific_settings": {
     "gecko": {
@@ -11,7 +11,8 @@
         "required": [
           "none"
         ]
-      }
+      },
+      "update_url": "https://raw.githubusercontent.com/trajche/arc/main/updates.json"
     }
   },
   "icons": {
