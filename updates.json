@@ -1,7 +1,13 @@
 {
   "addons": {
     "arc@sidebar": {
-      "updates": []
+      "updates": [
+        {
+          "version": "0.3.25",
+          "update_link": "https://github.com/trajche/arc/releases/download/v0.3.25/arc-0.3.25.xpi",
+          "update_hash": "sha256:7e601f0c5f4d472eb20f90d5ad36321b338b9dd72eee13d5ab528377dfeed2ad"
+        }
+      ]
     }
   }
 }
