@@ -125,6 +125,30 @@ $css = @'
   visibility: collapse !important;
 }
 
+/* Sharp edge between Arc and the page: Firefox rounds and shadows both the
+   sidebar panel and the content area. */
+#sidebar,
+#sidebar-box,
+.sidebar-browser-stack,
+#tabbrowser-tabbox,
+#tabbrowser-tabpanels,
+.browserSidebarContainer,
+.browserContainer,
+.browserStack,
+#tabbrowser-tabpanels browser {
+  border-radius: 0 !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+/* The separator line itself (Firefox draws it as a border on the sidebar). */
+:root {
+  --sidebar-border-color: transparent !important;
+  --chrome-content-separator-color: transparent !important;
+}
+
 /* Fixed width so the extensions row lines up with the sidebar. */
 #sidebar-box {
   width: var(--arcfox-sidebar-width) !important;
