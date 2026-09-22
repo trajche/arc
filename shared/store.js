@@ -430,9 +430,9 @@ const ArcFox = (() => {
     const space = state.spaces.find((s) => s.id === spaceId);
     const tab = await browser.tabs.get(tabId).catch(() => null);
     if (!space || !tab) return;
-    const current = await getWindowSpace(tab.windowId, state);
     const itemId = await getTabItem(tabId);
     const found = itemId && findItem(state, itemId);
+    let moved = tabId;
     if (found) {
       if (isFavKey(found.key)) return; // favorites belong to a container, not a space
       await moveItem(itemId, pinKey(spaceId));
@@ -441,17 +441,21 @@ const ArcFox = (() => {
       tab.cookieStoreId !== space.container &&
       (isFavoritable(tab.url) || isNewTabUrl(tab.url))
     ) {
-      await createTabInSpace(tab.windowId, space, {
+      // A different container means the tab is reopened there.
+      const replacement = await createTabInSpace(tab.windowId, space, {
         url: isFavoritable(tab.url) ? tab.url : undefined,
         active: false,
         index: tab.index + 1,
       });
+      moved = replacement.id;
       await browser.tabs.remove(tabId);
     } else {
       await setTabSpace(tabId, spaceId);
     }
-    // Stay in the current space; this also hides the moved tab.
-    await switchSpace(tab.windowId, current);
+    // Follow the tab into its new space (Arc does the same).
+    await rememberActive(tab.windowId, spaceId, moved);
+    await switchSpace(tab.windowId, spaceId);
+    await browser.tabs.update(moved, { active: true }).catch(() => {});
   }
 
   /** Give a freshly created tab a space; reopen new-tab pages in the space's container. */
