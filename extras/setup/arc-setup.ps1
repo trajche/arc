@@ -143,6 +143,13 @@ $css = @'
   margin: 0 !important;
 }
 
+/* Firefox leaves a gap under the sidebar (padding-block-end); Arc fills it. */
+#sidebar-box,
+#sidebar-container,
+.sidebar-browser-stack {
+  padding: 0 !important;
+}
+
 /* The separator line itself (Firefox draws it as a border on the sidebar). */
 :root {
   --sidebar-border-color: transparent !important;
