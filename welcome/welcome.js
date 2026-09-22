@@ -34,12 +34,14 @@ if (!navigator.platform.startsWith("Mac")) {
 const windows = navigator.platform.startsWith("Win");
 for (const el of document.querySelectorAll(".script")) el.hidden = (el.dataset.os === "windows") !== windows;
 
-// Copy the setup files shipped with Arc.
+// Copy the setup command, or the files shipped with Arc.
 for (const button of document.querySelectorAll("button.copy-btn")) {
   const label = button.textContent;
   button.addEventListener("click", async () => {
     try {
-      const text = await (await fetch(button.dataset.file)).text();
+      const text = button.dataset.copy
+        ? document.getElementById(button.dataset.copy).textContent
+        : await (await fetch(button.dataset.file)).text();
       await navigator.clipboard.writeText(text);
       button.textContent = "Copied";
       button.classList.add("done");

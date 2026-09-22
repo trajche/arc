@@ -107,16 +107,18 @@
         <p class="setup-lede">Firefox doesn’t let extensions hide its own tab strip and toolbar. A small setup script does it once: it finds the Firefox profile with Arc and adds Arc’s layout, keeping any customizations you already have.</p>
 
         <div class="script" data-os="unix">
-          <a class="copy-btn" href="../extras/setup/arc-setup.sh.txt" download="arc-setup.sh">Download setup script</a>
-          <p>Then run it in Terminal and restart Firefox:</p>
-          <pre><code>bash ~/Downloads/arc-setup.sh</code></pre>
+          <p>Paste this into Terminal, then quit Firefox and open it again:</p>
+          <pre><code id="cmd-unix">curl -fsSL https://raw.githubusercontent.com/trajche/arc/main/extras/setup/arc-setup.sh.txt | bash</code></pre>
+          <button class="copy-btn" data-copy="cmd-unix">Copy command</button>
+          <p class="script-alt">Or <a href="../extras/setup/arc-setup.sh.txt" download="arc-setup.sh">download the script</a> to read it first.</p>
         </div>
         <div class="script" data-os="windows" hidden>
-          <a class="copy-btn" href="../extras/setup/arc-setup.ps1" download="arc-setup.ps1">Download setup script</a>
-          <p>Then run it in PowerShell and restart Firefox:</p>
-          <pre><code>powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\Downloads\arc-setup.ps1"</code></pre>
+          <p>Paste this into PowerShell, then quit Firefox and open it again:</p>
+          <pre><code id="cmd-windows">irm https://raw.githubusercontent.com/trajche/arc/main/extras/setup/arc-setup.ps1 | iex</code></pre>
+          <button class="copy-btn" data-copy="cmd-windows">Copy command</button>
+          <p class="script-alt">Or <a href="../extras/setup/arc-setup.ps1" download="arc-setup.ps1">download the script</a> to read it first.</p>
         </div>
-        <p class="script-note">Run it again after updating Arc to refresh the layout. Add <code>--uninstall</code> (<code>-Uninstall</code> on Windows) to remove it.</p>
+        <p class="script-note">Run it again after updating Arc to refresh the layout.</p>
 
         <details class="manual">
           <summary>Set it up by hand instead</summary>

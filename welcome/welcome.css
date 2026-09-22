@@ -91,6 +91,9 @@ kbd { box-shadow: inset 0 -1px 0 var(--line); }
 .script pre code { padding: 0; background: none; white-space: pre; }
 a.copy-btn { display: inline-block; text-decoration: none; }
 .script-note { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+.script-alt { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+.script-alt a { color: var(--violet); }
+.script pre { user-select: all; }
 
 .manual { margin-top: 28px; }
 .manual summary { cursor: pointer; font: 600 16px var(--round); color: var(--violet); }
