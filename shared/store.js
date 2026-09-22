@@ -94,6 +94,7 @@ const ArcFox = (() => {
 
   /** Write lists ({key: list}) in chunks and drop chunks no longer needed. */
   async function writeLists(entries) {
+    stateCache = null;
     const existing = Object.keys(await DATA.get(null));
     const set = {};
     const remove = [];
@@ -121,7 +122,23 @@ const ArcFox = (() => {
 
   const writeList = (key, list) => writeLists({ [key]: list });
 
+  // Reading every key and rebuilding the state is the sidebar's hot path (it
+  // refreshes on each tab event), so keep the last result until something
+  // changes. storage.onChanged fires in this context too, including for our
+  // own writes.
+  let stateCache = null;
+  let iconCache = null;
+
+  browser.storage.onChanged?.addListener?.((changes, area) => {
+    if (area !== "local") return;
+    for (const key of Object.keys(changes)) {
+      if (key === ICON_KEY) iconCache = null;
+      else if (key === SPACES_KEY || key.startsWith(FAV_KEY) || key.startsWith(PIN_PREFIX)) stateCache = null;
+    }
+  });
+
   async function getState() {
+    if (stateCache) return stateCache;
     let all = await DATA.get(null);
     if (!(SPACES_KEY in all)) {
       // One-time move from storage.sync (Arc before 0.4).
@@ -138,7 +155,8 @@ const ArcFox = (() => {
     if (!spaces) {
       // Fixed id, so concurrent first runs (background + sidebar) agree.
       spaces = [{ ...DEFAULT_SPACE }];
-      await DATA.set({ [SPACES_KEY]: spaces });
+      stateCache = null;
+    await DATA.set({ [SPACES_KEY]: spaces });
     }
     const pins = new Map(spaces.map((s) => [s.id, readList(all, pinKey(s.id))]));
     const favLists = new Map([[FAV_KEY, readList(all, FAV_KEY)]]);
@@ -147,7 +165,8 @@ const ArcFox = (() => {
     }
     // `favorites`: every favorite in every list (for "is this a favorite?" checks).
     const favorites = [...favLists.values()].flat();
-    return { favorites, favLists, spaces, pins };
+    stateCache = { favorites, favLists, spaces, pins };
+    return stateCache;
   }
 
   function listFor(state, key) {
@@ -171,8 +190,10 @@ const ArcFox = (() => {
     new Set([...state.favorites, ...[...state.pins.values()].flat()].map((i) => i.id));
 
   async function getIconCache() {
+    if (iconCache) return iconCache;
     const { [ICON_KEY]: cache } = await browser.storage.local.get(ICON_KEY);
-    return cache && typeof cache === "object" ? cache : {};
+    iconCache = cache && typeof cache === "object" ? cache : {};
+    return iconCache;
   }
 
   async function cacheIcon(itemId, url) {
@@ -180,6 +201,7 @@ const ArcFox = (() => {
     const cache = await getIconCache();
     if (cache[itemId] === url) return;
     cache[itemId] = url;
+    iconCache = null;
     await browser.storage.local.set({ [ICON_KEY]: cache });
   }
 
@@ -187,6 +209,7 @@ const ArcFox = (() => {
     const cache = await getIconCache();
     if (!(itemId in cache)) return;
     delete cache[itemId];
+    iconCache = null;
     await browser.storage.local.set({ [ICON_KEY]: cache });
   }
 
@@ -355,6 +378,7 @@ const ArcFox = (() => {
     let saved;
     if (at >= 0) spaces[at] = saved = { ...spaces[at], ...space };
     else spaces.push((saved = { ...space, id: uid() }));
+    stateCache = null;
     await DATA.set({ [SPACES_KEY]: spaces });
     notify();
     return saved;
@@ -367,6 +391,7 @@ const ArcFox = (() => {
     const space = state.spaces.find((s) => s.id === spaceId);
     if (!space) return;
     insertBefore(spaces, space, beforeSpaceId);
+    stateCache = null;
     await DATA.set({ [SPACES_KEY]: spaces });
     notify();
   }
@@ -386,8 +411,10 @@ const ArcFox = (() => {
     const rest = state.spaces.filter((s) => s.id !== spaceId);
     if (!rest.length || rest.length === state.spaces.length) return false;
     const doomed = (await spaceTabs(spaceId)).map((t) => t.id);
+    stateCache = null;
     await DATA.set({ [SPACES_KEY]: rest });
     await writeList(pinKey(spaceId), []);
+    stateCache = null;
     await DATA.remove(pinKey(spaceId));
     for (const win of await browser.windows.getAll({ windowTypes: ["normal"] })) {
       if ((await windowValue(win.id, SPACE_VALUE)) === spaceId) await switchSpace(win.id, rest[0].id);
@@ -497,6 +524,7 @@ const ArcFox = (() => {
     if (replace && spaces.length) {
       const old = [...state.favLists.keys(), ...state.spaces.map((sp) => pinKey(sp.id))];
       await writeLists(Object.fromEntries(old.map((k) => [k, []])));
+      stateCache = null;
       await DATA.remove(old);
       state = await getState();
     }
@@ -530,8 +558,10 @@ const ArcFox = (() => {
       addedFavs++;
     }
     await writeLists(writes);
+    stateCache = null;
     await DATA.set({ [SPACES_KEY]: pristine && newSpaces.length ? newSpaces : [...state.spaces, ...newSpaces] });
     if (pristine && newSpaces.length) {
+      stateCache = null;
       await DATA.remove(state.spaces.map((sp) => pinKey(sp.id)));
       // Open tabs from the replaced spaces move to the first imported one;
       // their pinned/favorite bindings are gone with the old lists.
@@ -655,12 +685,13 @@ const ArcFox = (() => {
     const found = findItem(state, itemId);
     const tab = found && (await findBoundTab(state, itemId));
     if (!tab || !isFavoritable(tab.url)) return;
-    Object.assign(found.item, {
+    const updated = {
+      ...found.item,
       url: tab.url,
       title: tab.title || tab.url,
       icon: syncableIcon(tab.favIconUrl) || found.item.icon,
-    });
-    await writeList(found.key, found.list);
+    };
+    await writeList(found.key, found.list.map((i) => (i.id === itemId ? updated : i)));
     await cacheIcon(itemId, tab.favIconUrl);
   }
 

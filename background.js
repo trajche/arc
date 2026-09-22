@@ -106,9 +106,14 @@ browser.runtime.onStartup.addListener(() => {
 /* ---------- Tab lifecycle ---------- */
 
 browser.tabs.onCreated.addListener((tab) => {
-  // Blank tabs are adopted when Arc's new-tab page loads and reports in
-  // (handleNewTabPage). Fallback if it never does (e.g. override turned off).
-  const blank = tab.openerTabId === undefined && (ArcFox.isNewTabUrl(tab.url) || tab.url === "about:blank");
+  // Cmd/Ctrl+T: swap the blank tab for the command bar right away instead of
+  // waiting for Arc's new-tab page to load and report in — that page load is
+  // the delay before the search field is ready.
+  if (tab.openerTabId === undefined && ArcFox.isNewTabUrl(tab.url)) {
+    handleNewTabPage(tab).catch(() => {});
+    return;
+  }
+  const blank = tab.openerTabId === undefined && tab.url === "about:blank";
   setTimeout(() => ArcFox.adoptTab(tab.id), blank ? 1500 : 300);
 });
 
@@ -119,7 +124,12 @@ browser.tabs.onCreated.addListener((tab) => {
  * opened on a real page URL gets focus in the page, so the search field is
  * ready for typing.
  */
+const handledNewTabs = new Set();
+
 async function handleNewTabPage(tab) {
+  if (handledNewTabs.has(tab.id)) return;
+  handledNewTabs.add(tab.id);
+  setTimeout(() => handledNewTabs.delete(tab.id), 10000);
   if (tab.incognito) {
     // Private windows have no spaces or containers: a plain command-bar tab.
     await browser.tabs.create({

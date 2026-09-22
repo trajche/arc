@@ -43,6 +43,7 @@ async function cancel() {
 async function run(item) {
   if (closing) return;
   closing = true;
+  await ready; // ownTabId/windowId may still be resolving
   try {
     if (item.tab) {
       // Switching to an existing tab makes this blank one pointless.
@@ -145,18 +146,28 @@ window.addEventListener("focus", () => {
   if (document.activeElement !== input) input.focus();
 });
 
-(async () => {
+// Focus before anything else: typing must land in the field, not be lost
+// while the tab, space and search engine are looked up.
+input.focus();
+document.title = "New Tab";
+
+// Typing can beat this; run() waits on it before acting.
+const ready = (async () => {
   const self = await browser.tabs.getCurrent();
   ownTabId = self.id;
   windowId = self.windowId;
-  input.focus();
+  if (document.activeElement !== input) input.focus();
+  update(); // frequent sites, before the slower lookups
+
   // Tint with the space color of the window the bar belongs to.
   const state = await ArcFox.getState();
   const spaceId = await ArcFox.getWindowSpace(windowId, state);
   const space = state.spaces.find((x) => x.id === spaceId);
   document.documentElement.style.setProperty("--space", ArcFox.COLORS[space.color] || ArcFox.COLORS.purple);
-  document.title = "New Tab";
+
+  // The engine name only fills in the "Search <engine>" hint.
   engine = await engineName();
-  input.focus();
-  update();
+  if (!input.value.trim()) return;
+  hint.textContent = `Search ${engine}`;
+  render();
 })();
