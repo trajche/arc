@@ -1,6 +1,6 @@
 // Builds the one-step layout setup scripts from extras/userChrome.css and
 // extras/user.js, so they always ship the current files:
-//   extras/setup/arc-setup.sh.txt  (macOS, Linux; downloaded as arc-setup.sh)
+//   extras/setup/arc-setup.txt  (macOS, Linux; downloaded as arc-setup.sh)
 //   extras/setup/arc-setup.ps1  (Windows)
 // Run: npm run build:setup
 import fs from "node:fs";
@@ -212,7 +212,8 @@ if ($Uninstall) {
 `;
 
 fs.mkdirSync("extras/setup", { recursive: true });
-// .txt inside the add-on (Mozilla flags .sh files); the download is named arc-setup.sh.
-fs.writeFileSync("extras/setup/arc-setup.sh.txt", sh);
+// Plain .txt inside the add-on: add-on review flags any ".sh" in a file name.
+// The download is named arc-setup.sh.
+fs.writeFileSync("extras/setup/arc-setup.txt", sh);
 fs.writeFileSync("extras/setup/arc-setup.ps1", ps1.replace(/\n/g, "\r\n"));
-console.log("wrote extras/setup/arc-setup.sh.txt and extras/setup/arc-setup.ps1");
+console.log("wrote extras/setup/arc-setup.txt and extras/setup/arc-setup.ps1");

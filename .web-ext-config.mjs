@@ -4,6 +4,7 @@ export default {
     ".amo-upload-uuid",
     ".gitignore",
     "scripts",
+    "extras/setup",
     "docs",
     "updates.json",
     "videos",

@@ -76,7 +76,7 @@ Arc for Firefox needs **Firefox 140 or newer**.
 
    **macOS / Linux** (Terminal)
    ```sh
-   curl -fsSL https://raw.githubusercontent.com/trajche/arc/main/extras/setup/arc-setup.sh.txt | bash
+   curl -fsSL https://raw.githubusercontent.com/trajche/arc/main/extras/setup/arc-setup.txt | bash
    ```
 
    **Windows** (PowerShell)
@@ -84,7 +84,7 @@ Arc for Firefox needs **Firefox 140 or newer**.
    irm https://raw.githubusercontent.com/trajche/arc/main/extras/setup/arc-setup.ps1 | iex
    ```
 
-   Then quit Firefox and open it again. Run it again after updating Arc. To remove Arc's layout: add `| bash -s -- --uninstall` on macOS/Linux, or run `& ([scriptblock]::Create((irm <url>))) -Uninstall` on Windows. The scripts are [`arc-setup.sh.txt`](extras/setup/arc-setup.sh.txt) and [`arc-setup.ps1`](extras/setup/arc-setup.ps1) if you'd rather read and run them yourself.
+   Then quit Firefox and open it again. Run it again after updating Arc. To remove Arc's layout: add `| bash -s -- --uninstall` on macOS/Linux, or run `& ([scriptblock]::Create((irm <url>))) -Uninstall` on Windows. The scripts are [`arc-setup.txt`](extras/setup/arc-setup.txt) and [`arc-setup.ps1`](extras/setup/arc-setup.ps1) if you'd rather read and run them yourself.
 3. Coming from Arc? Right-click the space name → **Import from Arc…**
 
 The welcome page (opened on install, or right-click the space name → *Welcome & Setup*) explains the features and offers the setup script.
