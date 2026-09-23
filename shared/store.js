@@ -289,6 +289,22 @@ const ArcFox = (() => {
     await browser.sessions.setWindowValue(windowId, LAST_VALUE, last);
   }
 
+  /**
+   * Where a new tab goes in a space: above that space's other tabs (Arc puts
+   * new tabs at the top), after any natively pinned ones.
+   */
+  async function topIndexOfSpace(windowId, spaceId, { ignoreTabId = null } = {}) {
+    const tabs = (await browser.tabs.query({ windowId })).filter((t) => t.id !== ignoreTabId);
+    const pinned = tabs.filter((t) => t.pinned).length;
+    const state = await getState();
+    const { tabItem, tabSpace } = await scanTabs(tabs, state);
+    const favIds = new Set(state.favorites.map((f) => f.id));
+    const mine = tabs.filter(
+      (t) => !t.pinned && !favIds.has(tabItem.get(t.id)) && (tabSpace.get(t.id) ?? spaceId) === spaceId
+    );
+    return mine.length ? Math.max(pinned, Math.min(...mine.map((t) => t.index))) : pinned;
+  }
+
   async function createTabInSpace(windowId, space, { url, active = true, index } = {}) {
     const opts = { windowId, active };
     if (url) opts.url = url;
@@ -798,6 +814,7 @@ const ArcFox = (() => {
     getWindowSpace,
     rememberActive,
     createTabInSpace,
+    topIndexOfSpace,
     switchSpace,
     syncVisibility,
     saveSpace,

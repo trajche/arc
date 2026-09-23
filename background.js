@@ -132,10 +132,11 @@ async function handleNewTabPage(tab) {
   setTimeout(() => handledNewTabs.delete(tab.id), 10000);
   if (tab.incognito) {
     // Private windows have no spaces or containers: a plain command-bar tab.
+    const tabs = await browser.tabs.query({ windowId: tab.windowId });
     await browser.tabs.create({
       url: browser.runtime.getURL("palette/palette.html"),
       windowId: tab.windowId,
-      index: tab.index,
+      index: tabs.filter((t) => t.pinned).length, // top of the list
       active: tab.active,
     });
     await browser.tabs.remove(tab.id);
@@ -145,9 +146,11 @@ async function handleNewTabPage(tab) {
   let spaceId = await ArcFox.getTabSpace(tab.id);
   if (!state.spaces.some((s) => s.id === spaceId)) spaceId = await ArcFox.getWindowSpace(tab.windowId, state);
   const space = state.spaces.find((s) => s.id === spaceId);
+  // New tabs go to the top of the space's list, like Arc.
+  const index = await ArcFox.topIndexOfSpace(tab.windowId, spaceId, { ignoreTabId: tab.id });
   await ArcFox.createTabInSpace(tab.windowId, space, {
     url: browser.runtime.getURL("palette/palette.html"),
-    index: tab.index,
+    index,
     active: tab.active,
   });
   await browser.tabs.remove(tab.id);

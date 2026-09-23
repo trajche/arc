@@ -51,9 +51,12 @@ function spaceOf(tab) {
 }
 
 function newTabInSpace(url) {
+  // New tabs open at the top of the space's list, like Arc.
   const create = state.private
     ? browser.tabs.create({ windowId: state.windowId, active: true, ...(url ? { url } : {}) })
-    : ArcFox.createTabInSpace(state.windowId, space(), { url });
+    : ArcFox.topIndexOfSpace(state.windowId, state.spaceId).then((index) =>
+        ArcFox.createTabInSpace(state.windowId, space(), { url, index })
+      );
   return create.then((tab) => {
     schedule(true);
     return tab;
@@ -332,9 +335,8 @@ function tabEl(tab, make) {
 }
 
 function renderToday() {
-  const all = state.tabs.filter((t) => !state.tabItem.has(t.id) && (state.private || spaceOf(t) === state.spaceId));
-  // Blank new tabs go right under the "+ New Tab" button, like Arc.
-  const tabs = [...all.filter(isBlankTab), ...all.filter((t) => !isBlankTab(t))];
+  const tabs = state.tabs.filter((t) => !state.tabItem.has(t.id) && (state.private || spaceOf(t) === state.spaceId));
+  const all = tabs;
   // The "+ New Tab" button only shows while Today is empty; otherwise Cmd+T.
   els.newTab.hidden = all.length > 0;
   // A lone blank tab has nothing to close into: no ✕ on it.
