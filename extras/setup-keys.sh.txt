@@ -1,0 +1,36 @@
+# Firefox's own Cmd/Ctrl+T and Cmd/Ctrl+W are reserved shortcuts, so Arc can
+# only have them once the built-in keys are cleared. An empty entry in
+# customKeys.json means "cleared"; other entries there are left alone.
+# Injected verbatim into the setup scripts by scripts/build-setup.mjs.
+# (.txt because add-on review flags .sh files.)
+KEYS="$PROFILE/customKeys.json"
+ARC_KEYS="key_newNavigatorTab key_close"
+
+clear_default_key() { # $1 = key element id
+  if [ ! -s "$KEYS" ] || ! grep -q '[^[:space:]{}]' "$KEYS"; then
+    printf '{"%s":{}}' "$1" > "$KEYS"
+  elif ! grep -q "$1" "$KEYS"; then
+    tmp="$(mktemp)"
+    awk -v k="$1" 'NR == 1 { sub(/^[ \t]*\{/, "{\"" k "\":{},") } 1' "$KEYS" > "$tmp"
+    cat "$tmp" > "$KEYS"
+    rm -f "$tmp"
+  fi
+}
+
+restore_default_key() { # $1 = key element id
+  [ -f "$KEYS" ] || return 0
+  tmp="$(mktemp)"
+  awk -v k="$1" '{
+    pat = "\"" k "\"[ \t]*:[ \t]*\\{\\}"
+    gsub(pat "[ \t]*,[ \t]*", "")
+    gsub("[ \t]*,[ \t]*" pat, "")
+    gsub(pat, "")
+    print
+  }' "$KEYS" > "$tmp"
+  cat "$tmp" > "$KEYS"
+  rm -f "$tmp"
+}
+
+for key in $ARC_KEYS; do
+  if [ "$UNINSTALL" -eq 0 ]; then clear_default_key "$key"; else restore_default_key "$key"; fi
+done

@@ -4,6 +4,8 @@
 #   <profile>\chrome\userChrome.css  hides Firefox's tab strip and toolbar
 #   <profile>\user.js                turns the stylesheet on, horizontal tabs,
 #                                    opens Arc at startup
+#   <profile>\customKeys.json        clears Firefox's Ctrl+T and Ctrl+W so Arc
+#                                    can handle them
 # Your own CSS and prefs are kept: Arc only manages its marked block.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File arc-setup.ps1             set up (or update)
@@ -299,6 +301,21 @@ user_pref("browser.startup.page", 3);
 // Fallback when there is no session to restore: ArcFox panel open, launcher hidden.
 user_pref("sidebar.backupState", "{\"command\":\"arc_sidebar-sidebar-action\",\"panelOpen\":true,\"panelWidth\":260,\"launcherVisible\":false,\"launcherExpanded\":false}");
 '@
+
+# Firefox's own Ctrl+T is a reserved shortcut, so Arc's command bar can only
+# have it once the built-in key is cleared. An empty entry in customKeys.json
+# means "cleared"; other entries there are left alone.
+$keysPath = Join-Path $target.FullName "customKeys.json"
+$keys = [ordered]@{}
+if (Test-Path $keysPath) {
+  $raw = (Get-Content $keysPath -Raw).Trim()
+  if ($raw) { try { (ConvertFrom-Json $raw).PSObject.Properties | ForEach-Object { $keys[$_.Name] = $_.Value } } catch {} }
+}
+foreach ($key in @("key_newNavigatorTab", "key_close")) {
+  if ($Uninstall) { $keys.Remove($key) }
+  elseif (-not $keys.Contains($key)) { $keys[$key] = @{} }
+}
+[IO.File]::WriteAllText($keysPath, (ConvertTo-Json $keys -Compress -Depth 5), (New-Object Text.UTF8Encoding $false))
 
 Write-Block (Join-Path $target.FullName "chrome\userChrome.css") $CssBegin $CssEnd $css
 Write-Block (Join-Path $target.FullName "user.js") $JsBegin $JsEnd $prefs

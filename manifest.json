@@ -59,6 +59,20 @@
     "open_at_install": true
   },
   "commands": {
+    "new-tab": {
+      "suggested_key": {
+        "default": "Ctrl+T",
+        "mac": "Command+T"
+      },
+      "description": "Open the Arc command bar"
+    },
+    "close-tab": {
+      "suggested_key": {
+        "default": "Ctrl+W",
+        "mac": "Command+W"
+      },
+      "description": "Close the current tab"
+    },
     "_execute_sidebar_action": {
       "suggested_key": {
         "default": "Alt+Shift+A"

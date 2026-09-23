@@ -2,7 +2,8 @@
 # Cut a release: sign the current source, publish the .xpi as a GitHub release,
 # and point updates.json at it so installed copies update themselves.
 #
-#   npm run release
+#   npm run release           patch release
+#   npm run release -- minor  minor release
 #
 # Needs: .env with WEB_EXT_API_KEY / WEB_EXT_API_SECRET (addons.mozilla.org),
 # the gh CLI signed in, and a clean git tree.
@@ -14,8 +15,8 @@ ADDON_ID="arc@sidebar"
 
 [ -z "$(git status --porcelain)" ] || { echo "Commit or stash your changes first." >&2; exit 1; }
 
-# sign.sh bumps the patch version, then signs an unlisted build.
-./sign.sh
+# sign.sh bumps the version (patch by default), then signs an unlisted build.
+./sign.sh "${1:-patch}"
 VERSION="$(node -p "require('./manifest.json').version")"
 XPI="$(ls -t web-ext-artifacts/*.xpi | head -1)"
 RELEASE_FILE="web-ext-artifacts/arc-$VERSION.xpi"

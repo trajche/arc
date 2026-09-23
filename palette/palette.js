@@ -139,6 +139,14 @@ input.addEventListener("keydown", (e) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") cancel();
+  // The command bar is already here. Arc owns Cmd/Ctrl+T once the setup has
+  // cleared Firefox's own (reserved) shortcut; until then, at least keep the
+  // keypress from reaching this page's field.
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "t") {
+    e.preventDefault();
+    input.focus();
+    input.select();
+  }
 });
 
 // Keep the field focused whenever the page gets focus (e.g. switching back).

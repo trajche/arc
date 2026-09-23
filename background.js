@@ -114,8 +114,31 @@ browser.tabs.onCreated.addListener((tab) => {
     return;
   }
   const blank = tab.openerTabId === undefined && tab.url === "about:blank";
+  // Firefox puts its own new tab at the end of the strip; pull it to the top
+  // before the command bar takes its place.
+  if (blank) placeNewTab(tab).catch(() => {});
   setTimeout(() => ArcFox.adoptTab(tab.id), blank ? 1500 : 300);
 });
+
+/**
+ * A tab Firefox just made for Cmd/Ctrl+T. A second one while the command bar
+ * is open goes straight back to it; otherwise pull the tab to the top of the
+ * space, where the command bar will replace it.
+ */
+async function placeNewTab(tab) {
+  if (await reuseCommandBar(tab)) return;
+  await hoistNewTab(tab);
+}
+
+/** Move a tab Firefox just created to the top of its window's space. */
+async function hoistNewTab(tab) {
+  if (tab.incognito) return;
+  const spaceId = await ArcFox.getWindowSpace(tab.windowId, await ArcFox.getState());
+  const index = await ArcFox.topIndexOfSpace(tab.windowId, spaceId, { ignoreTabId: tab.id });
+  // Only ever pull a tab up: a tab Arc opened is already at the top, and the
+  // index above ignores it, so moving there would push it down one row.
+  if (index >= 0 && tab.index > index) await browser.tabs.move(tab.id, { index }).catch(() => {});
+}
 
 /**
  * Arc's new-tab page just loaded in `tab` (Cmd/Ctrl+T, New Tab, a new window,
@@ -126,10 +149,113 @@ browser.tabs.onCreated.addListener((tab) => {
  */
 const handledNewTabs = new Set();
 
+/**
+ * Cmd/Ctrl+T. Arc owns the shortcut, so Firefox never opens its own blank tab:
+ * either the command bar already in this window comes forward, or a new one
+ * opens at the top of the space.
+ */
+async function openCommandBar(windowId) {
+  const open = await commandBarIn(windowId);
+  if (open) {
+    await browser.tabs.update(open.id, { active: true });
+    return open;
+  }
+  const url = browser.runtime.getURL("palette/palette.html");
+  const win = await browser.windows.get(windowId).catch(() => null);
+  if (win?.incognito) {
+    const tabs = await browser.tabs.query({ windowId });
+    const tab = await browser.tabs.create({ url, windowId, index: tabs.filter((t) => t.pinned).length, active: true });
+    commandBars.set(windowId, tab.id);
+    return tab;
+  }
+  const state = await ArcFox.getState();
+  const spaceId = await ArcFox.getWindowSpace(windowId, state);
+  const space = state.spaces.find((s) => s.id === spaceId);
+  const index = await ArcFox.topIndexOfSpace(windowId, spaceId);
+  const tab = await ArcFox.createTabInSpace(windowId, space, { url, index, active: true });
+  commandBars.set(windowId, tab.id);
+  return tab;
+}
+
+/**
+ * Cmd/Ctrl+W. Arc owns the shortcut so the last tab of a space can stay: an
+ * empty space always keeps its command bar, and closing it would only make
+ * Firefox open a blank tab in its place.
+ */
+async function closeActiveTab() {
+  const win = await browser.windows.getLastFocused().catch(() => null);
+  if (!win) return;
+  // Arc's own windows (the space editor) have no tabs to close: close them.
+  if (win.type !== "normal") {
+    await browser.windows.remove(win.id).catch(() => {});
+    return;
+  }
+  const windowId = win.id;
+  const [tab] = await browser.tabs.query({ active: true, windowId });
+  if (!tab) return;
+  const rest = (await browser.tabs.query({ windowId, hidden: false })).filter((t) => t.id !== tab.id && !t.pinned);
+  if (!rest.length) {
+    // Nothing else in this space: keep (or restore) the command bar instead.
+    if (commandBars.get(windowId) === tab.id || ArcFox.isNewTabUrl(tab.url)) return;
+    await openCommandBar(windowId);
+  }
+  await browser.tabs.remove(tab.id);
+}
+
+/** Send a redundant new tab back to the command bar that is already open. */
+async function reuseCommandBar(tab) {
+  const open = await commandBarIn(tab.windowId, tab.id);
+  if (!open) return false;
+  handledNewTabs.add(tab.id);
+  await browser.tabs.remove(tab.id).catch(() => {});
+  const back = await browser.tabs.get(open.id).catch(() => null);
+  if (back && !back.active) await browser.tabs.update(open.id, { active: true }).catch(() => {});
+  return true;
+}
+
+// Command-bar tabs by window, so a redundant Cmd+T can be undone at once
+// instead of after a tabs.query round trip.
+const commandBars = new Map();
+
+function trackCommandBar(tab) {
+  if (!tab || tab.id === undefined) return;
+  if ((tab.url || "").startsWith(browser.runtime.getURL("palette/palette.html"))) commandBars.set(tab.windowId, tab.id);
+  else if (commandBars.get(tab.windowId) === tab.id) commandBars.delete(tab.windowId);
+}
+
+browser.tabs.onUpdated.addListener((tabId, changes, tab) => {
+  if (changes.url !== undefined) trackCommandBar(tab);
+});
+browser.tabs.onRemoved.addListener((tabId, info) => {
+  if (commandBars.get(info.windowId) === tabId) commandBars.delete(info.windowId);
+});
+
+/** A visible command-bar tab in `windowId`, if one is already open. */
+async function commandBarIn(windowId, ignoreTabId) {
+  const known = commandBars.get(windowId);
+  if (known !== undefined && known !== ignoreTabId) {
+    const tab = await browser.tabs.get(known).catch(() => null);
+    if (tab && !tab.hidden) return tab;
+    commandBars.delete(windowId);
+  }
+  const url = browser.runtime.getURL("palette/palette.html");
+  const tabs = await browser.tabs.query({ windowId });
+  const open = tabs.find((t) => t.id !== ignoreTabId && !t.hidden && (t.url || "").startsWith(url)) || null;
+  if (open) commandBars.set(windowId, open.id);
+  return open;
+}
+
 async function handleNewTabPage(tab) {
   if (handledNewTabs.has(tab.id)) return;
   handledNewTabs.add(tab.id);
   setTimeout(() => handledNewTabs.delete(tab.id), 10000);
+  // One command bar per window: a second Cmd+T returns to the open one.
+  const open = await commandBarIn(tab.windowId, tab.id);
+  if (open) {
+    await browser.tabs.update(open.id, { active: true });
+    await browser.tabs.remove(tab.id);
+    return;
+  }
   if (tab.incognito) {
     // Private windows have no spaces or containers: a plain command-bar tab.
     const tabs = await browser.tabs.query({ windowId: tab.windowId });
@@ -276,7 +402,11 @@ async function cycleSpace(step) {
 }
 
 browser.commands.onCommand.addListener(async (command) => {
-  if (command === "focus-address") {
+  if (command === "new-tab") {
+    await openCommandBar(await focusedWindowId());
+  } else if (command === "close-tab") {
+    await closeActiveTab();
+  } else if (command === "focus-address") {
     browser.sidebarAction.open(); // must run synchronously inside the user action
     const windowId = await focusedWindowId();
     // Sidebar may still be loading; it also checks for a pending focus on startup.

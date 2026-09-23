@@ -16,6 +16,7 @@ const els = {
   today: $("today"),
   newTab: $("new-tab"),
   clear: $("clear"),
+  newTabLink: $("new-tab-link"),
 };
 
 const state = {
@@ -50,7 +51,21 @@ function spaceOf(tab) {
   return s && state.spaces.some((x) => x.id === s) ? s : state.spaceId;
 }
 
+const PALETTE_URL = browser.runtime.getURL("palette/palette.html");
+
+/** The command bar already open in this space, if any. */
+function openCommandBar() {
+  return state.tabs.find(
+    (t) => !t.hidden && t.url?.startsWith(PALETTE_URL) && (state.private || spaceOf(t) === state.spaceId)
+  );
+}
+
 function newTabInSpace(url) {
+  // One command bar at a time: a second Cmd+T just goes back to it.
+  if (!url) {
+    const open = openCommandBar();
+    if (open) return browser.tabs.update(open.id, { active: true });
+  }
   // New tabs open at the top of the space's list, like Arc.
   const create = state.private
     ? browser.tabs.create({ windowId: state.windowId, active: true, ...(url ? { url } : {}) })
@@ -307,8 +322,13 @@ function renderPinned() {
 }
 
 // splitViewId is -1 (tabs.SPLIT_VIEW_ID_NONE) when the tab isn't in a Firefox split view.
-/** A blank "New Tab": Firefox/Arc new-tab pages, the command bar, or about:blank. */
-const isBlankTab = (tab) => ArcFox.isNewTabUrl(tab.url) || tab.url === "about:blank";
+/**
+ * A blank "New Tab": Firefox/Arc new-tab pages, the command bar, or an
+ * about:blank tab that isn't on its way somewhere — a tab opened from a link
+ * starts blank too, and that one should show as loading, not as "New Tab".
+ */
+const isBlankTab = (tab) =>
+  ArcFox.isNewTabUrl(tab.url) || ((!tab.url || tab.url === "about:blank") && tab.status !== "loading");
 
 const inSplit = (tab) => tab.splitViewId !== undefined && tab.splitViewId !== -1;
 
@@ -322,7 +342,8 @@ function tabEl(tab, make) {
   // Blank tabs (Cmd+T, command bar) look like the "+ New Tab" row.
   const blank = isBlankTab(tab);
   el.classList.toggle("blank", blank);
-  fillRow(el, tab, { title: blank ? "New Tab" : tab.title || tab.url, url: tab.url, icon: tab.favIconUrl });
+  const loadingTitle = tab.status === "loading" ? "Loading…" : tab.url;
+  fillRow(el, tab, { title: blank ? "New Tab" : tab.title || loadingTitle, url: tab.url, icon: tab.favIconUrl });
   if (blank) el.classList.remove("loading"); // a blank row never spins
   if (blank) {
     const box = el.querySelector(".favicon");
@@ -335,7 +356,15 @@ function tabEl(tab, make) {
 }
 
 function renderToday() {
-  const tabs = state.tabs.filter((t) => !state.tabItem.has(t.id) && (state.private || spaceOf(t) === state.spaceId));
+  const tabs = state.tabs.filter(
+    (t) =>
+      !state.tabItem.has(t.id) &&
+      !doomedTabs.has(t.id) &&
+      (preSwapTabs.has(t.id) || state.private || spaceOf(t) === state.spaceId)
+  );
+  // A tab Firefox just made sits at the end of its list and has no space yet;
+  // draw it where Arc is about to put it so the row never moves.
+  tabs.sort((a, b) => (preSwapTabs.has(b.id) ? 1 : 0) - (preSwapTabs.has(a.id) ? 1 : 0));
   const all = tabs;
   // The "+ New Tab" button only shows while Today is empty; otherwise Cmd+T.
   els.newTab.hidden = all.length > 0;
@@ -757,6 +786,7 @@ els.today.addEventListener("dblclick", (e) => {
 
 // New Tab opens Arc's command bar in a new tab (see palette/).
 els.newTab.addEventListener("click", () => newTabInSpace());
+els.newTabLink.addEventListener("click", () => newTabInSpace());
 
 els.clear.addEventListener("click", async () => {
   const ids = state.tabs
@@ -1000,7 +1030,22 @@ browser.storage.onChanged.addListener((changes, area) => {
   else if (keys.includes(ArcFox.ICON_KEY) || keys.includes(HIDE_FAV_HINT)) schedule();
 });
 
-browser.tabs.onCreated.addListener(() => {
+// Firefox creates its blank tab at the end of the list; Arc replaces it with a
+// command-bar tab at the top a moment later. Draw it at the top from the start.
+const preSwapTabs = new Set();
+// Tabs Arc is about to throw away: a Cmd+T while the command bar is open.
+const doomedTabs = new Set();
+
+browser.tabs.onCreated.addListener((tab) => {
+  // A fresh Cmd+T tab often reports about:blank before its page loads.
+  if (tab.openerTabId === undefined && (ArcFox.isFirefoxNewTab(tab.url) || !tab.url || tab.url === "about:blank")) {
+    const set = openCommandBar() ? doomedTabs : preSwapTabs;
+    set.add(tab.id);
+    setTimeout(() => {
+      set.delete(tab.id);
+      schedule();
+    }, 1500);
+  }
   schedule(true);
   // Background tags new tabs with a space shortly after creation.
   setTimeout(() => schedule(true), 400);
@@ -1011,6 +1056,8 @@ browser.tabs.onCreated.addListener(() => {
 const removedTabs = new Set();
 
 browser.tabs.onRemoved.addListener((tabId) => {
+  preSwapTabs.delete(tabId);
+  doomedTabs.delete(tabId);
   removedTabs.add(tabId);
   setTimeout(() => removedTabs.delete(tabId), 5000);
   state.tabItem.delete(tabId);

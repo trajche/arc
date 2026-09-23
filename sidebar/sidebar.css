@@ -292,6 +292,15 @@ body.pins-collapsed #pinned { display: none; }
   transition: opacity 120ms;
 }
 .divider-row:hover .link-btn, .scroll:hover .link-btn { opacity: 1; }
+.link-dot {
+  color: var(--muted);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.divider-row:hover .link-dot { opacity: 1; }
+.divider-row .link-btn, .divider-row .link-dot { margin-inline-start: -4px; }
+.divider-row .divider { margin-inline-end: 4px; }
 .link-btn:hover { color: var(--fg); }
 
 .new-tab {

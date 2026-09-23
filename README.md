@@ -93,6 +93,7 @@ The welcome page (opened on install, or right-click the space name → *Welcome 
 
 - `<profile>/chrome/userChrome.css` hides the tab strip, Firefox's sidebar launcher and panel header, and turns the toolbar into a row of extension buttons in the sidebar. Firefox's own address bar appears as a centered overlay with `⌘L` / `Ctrl+L` (needed for `about:` pages, which extensions can't open).
 - `<profile>/user.js` enables `userChrome.css`, horizontal tabs and session restore, keeps the window open when the last tab closes, and opens Arc's sidebar at startup.
+- `<profile>/customKeys.json` clears Firefox's built-in *New tab* and *Close tab* shortcuts. They're reserved keys, so Arc can only take `⌘T` / `Ctrl+T` (command bar) and `⌘W` / `Ctrl+W` (close tab, but a space keeps its last command bar instead of emptying) once they're cleared; any other shortcuts you've customized are kept. Undo it in `about:keyboard`.
 
 ## Limits
 

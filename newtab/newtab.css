@@ -1,4 +1,6 @@
-/* Plain background while Arc swaps this tab for the command bar. */
-html {
-  background: color-mix(in srgb, var(--space) var(--tint), var(--base));
+/* The still bar must not look interactive while Arc swaps this tab. */
+#q:disabled {
+  color: var(--fg);
+  -webkit-text-fill-color: var(--fg);
+  pointer-events: none;
 }

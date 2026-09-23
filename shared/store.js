@@ -46,6 +46,10 @@ const ArcFox = (() => {
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const isFavoritable = (url) => /^https?:\/\//i.test(url || "");
+  /** Firefox's blank new tab, before Arc swaps it for the command bar. */
+  const isFirefoxNewTab = (url) =>
+    url === "about:newtab" || url === "about:home" || /^moz-extension:\/\/[^/]+\/newtab\//.test(url || "");
+
   // Firefox's new-tab pages, plus Arc's own (new-tab page, full-page command bar).
   const isNewTabUrl = (url) =>
     url === "about:newtab" || url === "about:home" || /^moz-extension:\/\/[^/]+\/(newtab|palette)\//.test(url || "");
@@ -802,6 +806,7 @@ const ArcFox = (() => {
     pinKey,
     isFavoritable,
     isNewTabUrl,
+    isFirefoxNewTab,
     notify,
     getState,
     findItem,

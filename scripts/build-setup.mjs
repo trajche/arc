@@ -7,6 +7,7 @@ import fs from "node:fs";
 
 const css = fs.readFileSync("extras/userChrome.css", "utf8").trimEnd();
 const prefs = fs.readFileSync("extras/user.js", "utf8").trimEnd();
+const keys = fs.readFileSync("extras/setup-keys.sh.txt", "utf8").trimEnd();
 
 for (const [name, text] of [["css", css], ["prefs", prefs]]) {
   if (text.includes("ARC_EOF") || /^'@/m.test(text)) throw new Error(`${name} contains a heredoc terminator`);
@@ -19,6 +20,8 @@ const sh = `#!/usr/bin/env bash
 #   <profile>/chrome/userChrome.css  hides Firefox's tab strip and toolbar
 #   <profile>/user.js                turns the stylesheet on, horizontal tabs,
 #                                    opens Arc at startup
+#   <profile>/customKeys.json        clears Firefox's Cmd/Ctrl+T and Cmd/Ctrl+W
+#                                    so Arc can handle them
 # Your own CSS and prefs are kept: Arc only manages its marked block.
 #
 # Usage:  bash arc-setup.sh              set up (or update)
@@ -102,6 +105,8 @@ ${prefs}
 ARC_EOF
 PREFS="\${PREFS%$'\\n'}"
 
+${keys}
+
 write_block "$PROFILE/chrome/userChrome.css" "$CSS_BEGIN" "$CSS_END" "$CSS"
 write_block "$PROFILE/user.js" "$JS_BEGIN" "$JS_END" "$PREFS"
 
@@ -120,6 +125,8 @@ const ps1 = `# Arc for Firefox: give Arc the whole window (Windows).
 #   <profile>\\chrome\\userChrome.css  hides Firefox's tab strip and toolbar
 #   <profile>\\user.js                turns the stylesheet on, horizontal tabs,
 #                                    opens Arc at startup
+#   <profile>\\customKeys.json        clears Firefox's Ctrl+T and Ctrl+W so Arc
+#                                    can handle them
 # Your own CSS and prefs are kept: Arc only manages its marked block.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File arc-setup.ps1             set up (or update)
@@ -178,6 +185,21 @@ ${css}
 $prefs = @'
 ${prefs}
 '@
+
+# Firefox's own Ctrl+T is a reserved shortcut, so Arc's command bar can only
+# have it once the built-in key is cleared. An empty entry in customKeys.json
+# means "cleared"; other entries there are left alone.
+$keysPath = Join-Path $target.FullName "customKeys.json"
+$keys = [ordered]@{}
+if (Test-Path $keysPath) {
+  $raw = (Get-Content $keysPath -Raw).Trim()
+  if ($raw) { try { (ConvertFrom-Json $raw).PSObject.Properties | ForEach-Object { $keys[$_.Name] = $_.Value } } catch {} }
+}
+foreach ($key in @("key_newNavigatorTab", "key_close")) {
+  if ($Uninstall) { $keys.Remove($key) }
+  elseif (-not $keys.Contains($key)) { $keys[$key] = @{} }
+}
+[IO.File]::WriteAllText($keysPath, (ConvertTo-Json $keys -Compress -Depth 5), (New-Object Text.UTF8Encoding $false))
 
 Write-Block (Join-Path $target.FullName "chrome\\userChrome.css") $CssBegin $CssEnd $css
 Write-Block (Join-Path $target.FullName "user.js") $JsBegin $JsEnd $prefs
