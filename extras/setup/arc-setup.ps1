@@ -73,7 +73,10 @@ $css = @'
  */
 
 :root {
+  /* Starting width only: drag the edge to resize, Firefox remembers it. */
   --arcfox-sidebar-width: 260px;
+  --arcfox-sidebar-min: 180px;
+  --arcfox-sidebar-max: 620px;
   /* Draggable title-bar patch at the sidebar's top-left (window buttons). */
   --arcfox-titlebar-width: 150px;
   /* Must match ArcFox's layout: row starts 40px into the sidebar, 30px tall. */
@@ -92,18 +95,95 @@ $css = @'
   }
 }
 
+/* ---------- Arc's background, for Firefox's own panels ---------- */
+
+/* Arc tints its sidebar with the current space's color. Firefox's panels are
+   chrome and can't read that, so Arc writes the color into the window title
+   as an invisible marker (background.js) and it's decoded here. Values mirror
+   shared/theme.css. */
+:root {
+  --arcfox-base: #efedf5;
+  --arcfox-tint: 16%;
+  --arcfox-space: #af51f5;
+  --arcfox-panel-bg: color-mix(in srgb, var(--arcfox-space) var(--arcfox-tint), var(--arcfox-base));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --arcfox-base: #1c1a22;
+    --arcfox-tint: 12%;
+  }
+}
+
+#main-window[titlepreface*="\200C"] { --arcfox-space: #37adff; } /* blue */
+#main-window[titlepreface*="\200D"] { --arcfox-space: #00c79a; } /* turquoise */
+#main-window[titlepreface*="\2060"] { --arcfox-space: #51cd00; } /* green */
+#main-window[titlepreface*="\2061"] { --arcfox-space: #ffcb00; } /* yellow */
+#main-window[titlepreface*="\2062"] { --arcfox-space: #ff9f00; } /* orange */
+#main-window[titlepreface*="\2063"] { --arcfox-space: #ff613d; } /* red */
+#main-window[titlepreface*="\2064"] { --arcfox-space: #ff4bda; } /* pink */
+#main-window[titlepreface*="\FEFF"] { --arcfox-space: #af51f5; } /* purple */
+
+/* The panel area carries the color; Firefox's panels then let it through. */
+#sidebar-box,
+#sidebar {
+  background-color: var(--arcfox-panel-bg) !important;
+}
+:root {
+  --sidebar-background-color: var(--arcfox-panel-bg) !important;
+}
+
+@-moz-document url-prefix("chrome://browser/content/places/"),
+  url-prefix("chrome://browser/content/syncedtabs/"),
+  url-prefix("chrome://browser/content/genai/"),
+  url-prefix("chrome://browser/content/sidebar/") {
+  :root,
+  body,
+  #sidebar-panel-header,
+  #history-panel,
+  #bookmarksPanel,
+  #syncedTabsContent,
+  tree,
+  tree > treechildren {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+}
+
 /* ---------- Firefox chrome ArcFox replaces ---------- */
 
 /* Firefox's sidebar launcher and the panel header ("Arc  x"):
    #sidebar-header in the old sidebar; #sidebar-panel-header in the new one,
    which lives inside the panel document (webext-panels.xhtml). */
-#sidebar-panel-header,
 #sidebar-container,
 #sidebar-launcher-splitter,
-#sidebar-header,
-#sidebar-splitter {
+#sidebar-header {
   visibility: collapse !important;
   display: none !important;
+}
+
+/* Arc's sidebar is resizable: Firefox's splitter stays, as an invisible grab
+   strip on the edge (it draws the border Arc removed otherwise). Firefox
+   remembers the width it's dragged to. */
+#sidebar-splitter {
+  appearance: none !important;
+  width: 5px !important;
+  min-width: 5px !important;
+  margin-inline-start: -5px !important;
+  border: 0 !important;
+  background: transparent !important;
+  z-index: 5 !important;
+}
+
+/* The panel header belongs to the panel's own document, and userChrome.css
+   styles every chrome document — so hide it only in Arc's panel. Firefox's
+   own panels (bookmarks, history, synced tabs, AI chat) keep their title
+   and close button. */
+@-moz-document url-prefix("chrome://browser/content/webext-panels.xhtml") {
+  #sidebar-panel-header {
+    visibility: collapse !important;
+    display: none !important;
+  }
 }
 
 /* What's left of the tab strip: a transparent patch in the sidebar's empty
@@ -160,9 +240,29 @@ $css = @'
 
 /* Fixed width so the extensions row lines up with the sidebar. */
 #sidebar-box {
-  width: var(--arcfox-sidebar-width) !important;
-  min-width: var(--arcfox-sidebar-width) !important;
-  max-width: var(--arcfox-sidebar-width) !important;
+  width: var(--arcfox-sidebar-width);
+  min-width: var(--arcfox-sidebar-min) !important;
+  max-width: var(--arcfox-sidebar-max) !important;
+}
+
+/* ---------- Firefox's own sidebar panels ---------- */
+
+/* Arc's layout is made for Arc's panel (which Firefox loads as
+   webext-panels.xhtml). When the sidebar shows one of Firefox's panels
+   instead, hand the space back: the extensions row would sit on the panel's
+   search field, the window buttons would cover its first row, and Arc's
+   narrow width crops the AI chat. */
+#main-window:has(#sidebar[src]:not([src*="webext-panels"]):not([src="about:blank"])) {
+  --arcfox-native-panel: 1;
+}
+#main-window:has(#sidebar[src]:not([src*="webext-panels"]):not([src="about:blank"])) #nav-bar {
+  display: none !important;
+}
+#main-window:has(#sidebar[src]:not([src*="webext-panels"]):not([src="about:blank"])) #sidebar-box {
+  /* Same width as Arc's own panel (drag the edge to change both). Firefox
+     asks for 400px for the AI chat; Arc's width wins. */
+  min-width: var(--arcfox-sidebar-min) !important;
+  padding-block-start: var(--arcfox-ext-top) !important;
 }
 
 /* Arc's own small windows (command bar, space editor) are popups: no toolbar. */
@@ -191,6 +291,7 @@ $css = @'
   top: var(--arcfox-ext-top) !important;
   left: 8px !important;
   width: calc(var(--arcfox-sidebar-width) - 16px) !important;
+  max-width: calc(100vw - 16px) !important;
   height: var(--arcfox-ext-height) !important;
   min-height: 0 !important;
   margin: 0 !important;
@@ -283,6 +384,22 @@ $css = @'
 }
 #urlbar-container:focus-within #urlbar-background {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* The extensions row lives in the toolbar, outside the sidebar, so it can't
+   read the sidebar's width. Where anchor positioning is available it tracks
+   the sidebar's edges exactly; otherwise it keeps its default width and the
+   row simply stays left-aligned when the sidebar is dragged wider. */
+@supports (position-anchor: --a) {
+  #sidebar-box {
+    anchor-name: --arcfox-sidebar !important;
+  }
+  #nav-bar {
+    position-anchor: --arcfox-sidebar !important;
+    left: calc(anchor(left) + 8px) !important;
+    right: calc(anchor(right) + 8px) !important;
+    width: auto !important;
+  }
 }
 '@
 

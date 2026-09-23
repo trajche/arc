@@ -149,7 +149,8 @@ svg { display: block; }
 
 .fav-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Reflows when the sidebar is dragged wider or narrower. */
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
   gap: 8px;
   min-height: 20px;
 }
@@ -624,3 +625,7 @@ body.private .space-head .space-more { display: none; }
 body.private .space-head { cursor: default; }
 body.private .space-head:hover { background: none; }
 body.private .scroll { padding-bottom: 12px; }
+
+/* Until the first render lands, the sidebar has no tabs, no space and no
+   favorites: show nothing rather than an empty "+ New Tab" and a blank header. */
+body.booting .scroll, body.booting .spaces { visibility: hidden; }

@@ -18,8 +18,50 @@ let moveChildren = [];
 const HIDDEN_VALUE = "arcfoxHidden";
 const HIDDEN_MARK = "\u200B"; // zero-width space: invisible in the window title
 
+/* One invisible character per space color. Firefox's own sidebar panels
+ * (history, bookmarks, synced tabs, the AI chat) are chrome, so they can't
+ * read Arc's colors; this is how extras/userChrome.css learns which tint to
+ * paint behind them. */
+const COLOR_MARKS = {
+  blue: "\u200C",
+  turquoise: "\u200D",
+  green: "\u2060",
+  yellow: "\u2061",
+  orange: "\u2062",
+  red: "\u2063",
+  pink: "\u2064",
+  purple: "\uFEFF",
+};
+
+/** Write both markers (hidden state, space color) into the window title. */
+async function applyWindowMarks(windowId, hiddenOverride) {
+  const hidden =
+    hiddenOverride ?? (await browser.sessions.getWindowValue(windowId, HIDDEN_VALUE).catch(() => false));
+  let mark = COLOR_MARKS.purple;
+  const win = await browser.windows.get(windowId).catch(() => null);
+  if (win && !win.incognito) {
+    const state = await ArcFox.getState();
+    const spaceId = await ArcFox.getWindowSpace(windowId, state);
+    const space = state.spaces.find((s) => s.id === spaceId);
+    mark = COLOR_MARKS[space?.color] || COLOR_MARKS.purple;
+  }
+  await browser.windows.update(windowId, { titlePreface: (hidden ? HIDDEN_MARK : "") + mark });
+}
+
 async function applySidebarHidden(windowId, hidden) {
-  await browser.windows.update(windowId, { titlePreface: hidden ? HIDDEN_MARK : "" });
+  await applyWindowMarks(windowId, hidden);
+}
+
+// The space (and so the tint) changes from the sidebar, which doesn't touch
+// the window title itself.
+let markTimer = 0;
+function refreshWindowMarks() {
+  clearTimeout(markTimer);
+  markTimer = setTimeout(async () => {
+    for (const win of await browser.windows.getAll({ windowTypes: ["normal"] })) {
+      await applyWindowMarks(win.id).catch(() => {});
+    }
+  }, 150);
 }
 
 async function toggleSidebar(windowId) {
@@ -27,6 +69,10 @@ async function toggleSidebar(windowId) {
   await browser.sessions.setWindowValue(windowId, HIDDEN_VALUE, hidden);
   await applySidebarHidden(windowId, hidden);
 }
+
+browser.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === "arcfox:changed") refreshWindowMarks();
+});
 
 browser.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type !== "arcfox:toggle-sidebar") return;
@@ -36,6 +82,7 @@ browser.runtime.onMessage.addListener((msg, sender) => {
 
 // Title markers don't survive restarts; re-apply the saved state.
 browser.windows.onCreated.addListener(async (win) => {
+  applyWindowMarks(win.id).catch(() => {});
   if (await browser.sessions.getWindowValue(win.id, HIDDEN_VALUE).catch(() => false)) {
     applySidebarHidden(win.id, true);
   }

@@ -147,10 +147,17 @@ async function refresh() {
 /* ---------- Rendering ---------- */
 
 function render() {
+  document.body.classList.remove("booting");
   if (state.private) return renderPrivate();
   const sp = space();
   const color = ArcFox.COLORS[sp?.color] || ArcFox.COLORS.purple;
   document.documentElement.style.setProperty("--space", color);
+  // New tabs read this to paint the right tint on their first frame.
+  try {
+    if (localStorage.getItem("arc:space-tint") !== color) localStorage.setItem("arc:space-tint", color);
+  } catch {
+    // no storage here: new tabs just start on the default color
+  }
   els.spaceIcon.textContent = sp?.icon || "";
   els.spaceIcon.hidden = !sp?.icon;
   els.spaceName.textContent = sp?.name || "";
@@ -228,7 +235,7 @@ function fillRow(el, tab, { title, url, icon }) {
   el.classList.toggle("discarded", !!tab?.discarded);
   el.classList.toggle("loading", tab?.status === "loading" && !tab.discarded);
   if (titleEl.textContent !== title) titleEl.textContent = title;
-  el.title = `${title}\n${url}`;
+  el.title = url ? `${title}\n${url}` : title;
   setIcon(favicon, icon, url);
   const muted = !!tab?.mutedInfo?.muted;
   audio.hidden = !(tab?.audible || muted);
@@ -332,6 +339,28 @@ const isBlankTab = (tab) =>
 
 const inSplit = (tab) => tab.splitViewId !== undefined && tab.splitViewId !== -1;
 
+// Firefox clears favIconUrl while a tab navigates, which would swap the icon
+// for a letter tile and back on every load. Keep the last one for as long as
+// the tab stays on the same site.
+const lastIcon = new Map(); // tabId -> { icon, origin }
+
+function iconFor(tab) {
+  let origin = "";
+  try {
+    origin = new URL(tab.url || "").origin;
+  } catch {
+    // about:, blank, or a URL Firefox hasn't reported yet
+  }
+  if (tab.favIconUrl) {
+    lastIcon.set(tab.id, { icon: tab.favIconUrl, origin });
+    return tab.favIconUrl;
+  }
+  const kept = lastIcon.get(tab.id);
+  if (kept && (kept.origin === origin || !origin)) return kept.icon;
+  lastIcon.delete(tab.id);
+  return null;
+}
+
 function tabEl(tab, make) {
   let el = tabEls.get(tab.id);
   if (!el || el.matches("li") !== (make === makeRow)) {
@@ -339,12 +368,16 @@ function tabEl(tab, make) {
     tabEls.set(tab.id, el);
   }
   el.dataset.sel = `t:${tab.id}`;
-  // Blank tabs (Cmd+T, command bar) look like the "+ New Tab" row.
-  const blank = isBlankTab(tab);
+  // Blank tabs (Cmd+T, command bar) look like the "+ New Tab" row — unless the
+  // command bar has just sent one somewhere.
+  const pending = pendingNav.get(tab.id);
+  const blank = !pending && isBlankTab(tab);
   el.classList.toggle("blank", blank);
   const loadingTitle = tab.status === "loading" ? "Loading…" : tab.url;
-  fillRow(el, tab, { title: blank ? "New Tab" : tab.title || loadingTitle, url: tab.url, icon: tab.favIconUrl });
+  const title = blank ? "New Tab" : pending?.label || tab.title || loadingTitle;
+  fillRow(el, tab, { title, url: pending ? "" : tab.url, icon: pending ? null : iconFor(tab) });
   if (blank) el.classList.remove("loading"); // a blank row never spins
+  if (pending) el.classList.add("loading"); // ...but a tab on its way does
   if (blank) {
     const box = el.querySelector(".favicon");
     if (box.dataset.src !== "plus") {
@@ -416,6 +449,7 @@ const favHint = [
 
 /** Private window: just the tab list (Arc's Incognito sidebar). */
 function renderPrivate() {
+  document.body.classList.remove("booting");
   document.documentElement.style.setProperty("--space", ArcFox.COLORS.purple);
   els.spaceName.textContent = "Private window";
   els.spaceIcon.hidden = true;
@@ -1014,8 +1048,25 @@ async function onTodayDrop(e) {
 
 /* ---------- Live updates ---------- */
 
+// The command bar tells the sidebar where a tab is headed the moment Enter is
+// pressed: Firefox only reports the new URL once the page commits, which is a
+// slow beat to wait for on a cold connection.
+const pendingNav = new Map(); // tabId -> { label, at }
+
+function noteNavigation(tabId, label) {
+  pendingNav.set(tabId, { label, at: Date.now() });
+  setTimeout(() => {
+    if (pendingNav.get(tabId)?.at <= Date.now() - 30000) {
+      pendingNav.delete(tabId);
+      schedule();
+    }
+  }, 30000);
+  schedule();
+}
+
 browser.runtime.onMessage.addListener((msg) => {
   if (msg?.type === "arcfox:changed") schedule(true);
+  if (msg?.type === "arcfox:navigating" && msg.tabId !== undefined) noteNavigation(msg.tabId, msg.label);
   if (msg?.type === "arcfox:focus-address" && msg.windowId === state.windowId) {
     browser.storage.session.remove("focusAddress");
     address.focus();
@@ -1058,13 +1109,19 @@ const removedTabs = new Set();
 browser.tabs.onRemoved.addListener((tabId) => {
   preSwapTabs.delete(tabId);
   doomedTabs.delete(tabId);
+  pendingNav.delete(tabId);
+  lastIcon.delete(tabId);
   removedTabs.add(tabId);
   setTimeout(() => removedTabs.delete(tabId), 5000);
   state.tabItem.delete(tabId);
   state.tabSpace.delete(tabId);
   schedule();
 });
-browser.tabs.onUpdated.addListener(() => schedule(), {
+browser.tabs.onUpdated.addListener((tabId, changes) => {
+  // The page committed (or went somewhere else): the guess isn't needed.
+  if (changes.url !== undefined && !ArcFox.isNewTabUrl(changes.url)) pendingNav.delete(tabId);
+  schedule();
+}, {
   properties: ["title", "status", "favIconUrl", "pinned", "discarded", "audible", "mutedInfo", "url", "hidden", "splitViewId"],
 });
 for (const ev of ["onActivated", "onMoved", "onAttached", "onDetached"]) {

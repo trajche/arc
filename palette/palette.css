@@ -97,3 +97,10 @@ body {
   background: var(--row-hover);
 }
 .list li.selected .key { background: rgba(255, 255, 255, 0.2); }
+
+/* Enter pressed: the page stays up until the new one paints, so show that
+   something is happening instead of an unchanged list. */
+body.busy .list { opacity: 0.45; pointer-events: none; }
+body.busy .field-icon { opacity: 0.45; }
+body.busy #q { color: var(--muted); }
+.list, .field-icon { transition: opacity 120ms; }

@@ -22,6 +22,21 @@ let closing = false;
 // Extensions may not open Firefox's own pages (about:config, about:keyboard...).
 const isFirefoxPage = (url) => /^about:/i.test(url || "") && !/^about:(blank|newtab|home)$/i.test(url);
 
+/** Open a connection to `url`'s host while the user is still reading the list.
+ *  DNS and TLS are most of the wait on a first visit to a site. */
+const warmed = new Set();
+function preconnect(url) {
+  let origin;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return;
+  }
+  if (!/^https?:$/.test(new URL(origin).protocol) || warmed.has(origin)) return;
+  warmed.add(origin);
+  document.head.append(h("link", { rel: "preconnect", href: origin }));
+}
+
 /** Navigate this tab to `target` ({url} or {search}). */
 async function open(target) {
   if (isFirefoxPage(target.url)) {
@@ -40,11 +55,34 @@ async function cancel() {
   if ((await browser.tabs.query({ windowId })).length > 1) await browser.tabs.remove(ownTabId);
 }
 
+/** What the sidebar should show for this row while the page loads. */
+function pendingLabel(item) {
+  const url = item.target?.url;
+  if (url) {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "") || url;
+    } catch {
+      return url;
+    }
+  }
+  return item.target?.search ? `Search ${engine}` : "Loading…";
+}
+
 async function run(item) {
   if (closing) return;
   closing = true;
   await ready; // ownTabId/windowId may still be resolving
   try {
+    if (!item.tab) {
+      const label = pendingLabel(item);
+      // Tell the sidebar now: Firefox reports the new URL only once the page
+      // commits, and until then the row would still read "New Tab".
+      browser.runtime.sendMessage({ type: "arcfox:navigating", tabId: ownTabId, label }).catch(() => {});
+      // ...and say so here too: this page stays up until the new one paints.
+      document.body.classList.add("busy");
+      hint.textContent = item.target?.search ? `Searching ${engine}…` : `Opening ${label}…`;
+      hint.classList.remove("warn");
+    }
     if (item.tab) {
       // Switching to an existing tab makes this blank one pointless.
       await switchToTab(item.tab, windowId);
@@ -106,6 +144,7 @@ async function update() {
   items = next;
   itemsFor = text;
   selected = 0;
+  if (items[0]?.target?.url) preconnect(items[0].target.url);
   hint.textContent = text ? `Search ${engine}` : "";
   hint.classList.remove("warn");
   render();
@@ -171,7 +210,13 @@ const ready = (async () => {
   const state = await ArcFox.getState();
   const spaceId = await ArcFox.getWindowSpace(windowId, state);
   const space = state.spaces.find((x) => x.id === spaceId);
-  document.documentElement.style.setProperty("--space", ArcFox.COLORS[space.color] || ArcFox.COLORS.purple);
+  const tint = ArcFox.COLORS[space.color] || ArcFox.COLORS.purple;
+  document.documentElement.style.setProperty("--space", tint);
+  try {
+    localStorage.setItem("arc:space-tint", tint);
+  } catch {
+    // nothing to cache with: the next new tab just starts on the default
+  }
 
   // The engine name only fills in the "Search <engine>" hint.
   engine = await engineName();
