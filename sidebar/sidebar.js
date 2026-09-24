@@ -32,6 +32,7 @@ const state = {
   bound: new Map(), // itemId -> tab
   tabItem: new Map(), // tabId -> itemId
   tabSpace: new Map(), // tabId -> spaceId
+  badges: new Map(), // tabId -> badges other extensions put on it
   tabs: [], // this window, sorted by index
 };
 
@@ -106,12 +107,14 @@ async function refresh() {
       again = false;
       const scan = scanDirty;
       scanDirty = false;
-      const [st, icons, allTabs, prefs] = await Promise.all([
+      const [st, icons, allTabs, prefs, badges] = await Promise.all([
         ArcFox.getState(),
         ArcFox.getIconCache(),
         browser.tabs.query({}).then((tabs) => tabs.filter((t) => !removedTabs.has(t.id))),
         browser.storage.local.get([HIDE_FAV_HINT, PINS_COLLAPSED]),
+        ArcFox.getBadges(),
       ]);
+      state.badges = badges;
       state.hideFavHint = !!prefs[HIDE_FAV_HINT];
       collapsed = prefs[PINS_COLLAPSED] || {};
       if (scan) {
@@ -216,6 +219,7 @@ function closeIcon() {
 const rowParts = () => [
   h("span", { className: "favicon" }),
   h("span", { className: "title" }),
+  h("span", { className: "badges" }),
   h("button", { className: "icon-btn audio" }),
   h("button", { className: "icon-btn close", title: "Close tab" }, closeIcon()),
 ];
@@ -230,7 +234,7 @@ function makeSplitRow() {
 }
 
 function fillRow(el, tab, { title, url, icon }) {
-  const [favicon, titleEl, audio] = el.children;
+  const [favicon, titleEl, badgesEl, audio] = el.children;
   el.classList.toggle("active", !!tab?.active);
   el.classList.toggle("discarded", !!tab?.discarded);
   el.classList.toggle("loading", tab?.status === "loading" && !tab.discarded);
@@ -241,6 +245,19 @@ function fillRow(el, tab, { title, url, icon }) {
   audio.hidden = !(tab?.audible || muted);
   audio.textContent = muted ? "🔇" : "🔊";
   audio.title = muted ? "Unmute tab" : "Mute tab";
+  fillBadges(badgesEl, (tab && state.badges.get(tab.id)) || []);
+}
+
+/** Badges other extensions set on a tab (see "Tab badges" in background.js). */
+function fillBadges(el, badges) {
+  const key = JSON.stringify(badges);
+  if (el.dataset.key === key) return;
+  el.dataset.key = key;
+  el.replaceChildren(
+    ...badges.map((b) =>
+      h("span", { className: "badge", title: b.title, style: b.color ? { "--badge": b.color } : undefined }, b.label)
+    )
+  );
 }
 
 function svgIcon(d) {
@@ -1074,6 +1091,7 @@ browser.runtime.onMessage.addListener((msg) => {
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
+  if (area === "session" && ArcFox.BADGES_KEY in changes) schedule();
   if (area !== "local") return;
   const keys = Object.keys(changes);
   const data = keys.some((k) => k === ArcFox.SPACES_KEY || k.startsWith(ArcFox.FAV_KEY) || k.startsWith(ArcFox.PIN_PREFIX));

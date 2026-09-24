@@ -12,6 +12,14 @@ const input = document.getElementById("q");
 const list = document.getElementById("list");
 const hint = document.getElementById("hint");
 
+// Re-rendering the list moves fresh rows under a resting cursor, which fires
+// mouseenter and would drag the selection back to whatever the mouse is over.
+// Hover only counts once the mouse has actually moved again.
+let pointerActive = true;
+document.addEventListener("mousemove", () => {
+  pointerActive = true;
+});
+
 let items = [];
 let itemsFor = "";
 let selected = 0;
@@ -115,6 +123,7 @@ function render() {
         {
           className: i === selected ? "selected" : "",
           onmouseenter: () => {
+            if (!pointerActive) return;
             selected = i;
             for (const [j, row] of [...list.children].entries()) row.classList.toggle("selected", j === i);
           },
@@ -156,10 +165,13 @@ input.addEventListener("input", () => {
   debounce = setTimeout(update, 50);
 });
 
-input.addEventListener("keydown", (e) => {
+// On the document, not the field: the mouse may have moved focus away (a
+// click in the page, a hovered row), and the arrows have to keep working.
+document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     if (!items.length) return;
     e.preventDefault();
+    pointerActive = false; // the keyboard has the selection now
     selected = (selected + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
     render();
     list.children[selected]?.scrollIntoView({ block: "nearest" });
@@ -173,6 +185,9 @@ input.addEventListener("keydown", (e) => {
     // Arc: Tab searches with the default engine.
     e.preventDefault();
     run({ target: { search: input.value.trim() } });
+  } else if (document.activeElement !== input && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
+    // Typing anywhere goes back into the field, with the character kept.
+    input.focus();
   }
 });
 

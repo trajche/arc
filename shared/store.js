@@ -26,6 +26,8 @@ const ArcFox = (() => {
   const SPACES_KEY = "spaces";
   const PIN_PREFIX = "pins:";
   const ICON_KEY = "faviconCache";
+  const BADGES_KEY = "tabBadges"; // storage.session: { [extensionId]: [{ tabId, label, title, color }] }
+  const BADGE_PROVIDERS_KEY = "badgeProviders"; // storage.local: extensions that have set badges
   const ITEM_VALUE = "arcfoxFav"; // name kept so bindings from 0.1.x survive
   const SPACE_VALUE = "arcfoxSpace";
   const LAST_VALUE = "arcfoxLast";
@@ -795,7 +797,63 @@ const ArcFox = (() => {
     notify();
   }
 
+  /* ---------- Tab badges from other extensions ---------- */
+
+  const MAX_BADGES = 200; // per extension
+  const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const text = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+  // One write at a time: each one reads and rewrites the whole badge map.
+  let badgeWrites = Promise.resolve();
+
+  /** Replace the badges `extensionId` shows on tabs. Only plain text and hex colors get through. */
+  function setBadges(extensionId, badges) {
+    const write = badgeWrites.then(() => writeBadges(extensionId, badges));
+    badgeWrites = write.catch(() => {});
+    return write;
+  }
+
+  async function writeBadges(extensionId, badges) {
+    const clean = (Array.isArray(badges) ? badges : [])
+      .slice(0, MAX_BADGES)
+      .filter((b) => Number.isInteger(b?.tabId) && text(b.label, 12))
+      .map((b) => ({
+        tabId: b.tabId,
+        label: text(b.label, 12),
+        title: text(b.title, 120),
+        color: HEX_COLOR.test(b.color || "") ? b.color : "",
+      }));
+    const { [BADGES_KEY]: all = {} } = await browser.storage.session.get(BADGES_KEY);
+    if (clean.length) all[extensionId] = clean;
+    else delete all[extensionId];
+    await browser.storage.session.set({ [BADGES_KEY]: all });
+    const { [BADGE_PROVIDERS_KEY]: providers = [] } = await browser.storage.local.get(BADGE_PROVIDERS_KEY);
+    if (!providers.includes(extensionId)) {
+      await browser.storage.local.set({ [BADGE_PROVIDERS_KEY]: [...providers, extensionId] });
+    }
+  }
+
+  /** Badges by tab id, from every extension. */
+  async function getBadges() {
+    const { [BADGES_KEY]: all = {} } = await browser.storage.session.get(BADGES_KEY).catch(() => ({}));
+    const byTab = new Map();
+    for (const badges of Object.values(all)) {
+      for (const b of badges) byTab.set(b.tabId, [...(byTab.get(b.tabId) || []), b]);
+    }
+    return byTab;
+  }
+
+  /** Badges live in session storage: ask the extensions that set them before to send them again. */
+  async function announceToBadgeProviders() {
+    const { [BADGE_PROVIDERS_KEY]: providers = [] } = await browser.storage.local.get(BADGE_PROVIDERS_KEY);
+    for (const id of providers) browser.runtime.sendMessage(id, { type: "arcsidebar:ready" }).catch(() => {});
+  }
+
   return {
+    setBadges,
+    getBadges,
+    announceToBadgeProviders,
+    BADGES_KEY,
     FAV_KEY,
     favKey,
     isFavKey,

@@ -391,6 +391,20 @@ body.pins-collapsed #pinned { display: none; }
 .tab:hover .close { visibility: visible; }
 .tab .audio[hidden] { display: none; }
 
+/* Badges other extensions put on tabs (e.g. Tab Driver's "AI" on agent-controlled tabs). */
+.tab .badges { display: flex; flex: none; gap: 4px; }
+.tab .badges:empty { display: none; }
+.tab .badge {
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--badge, var(--space));
+  background: color-mix(in srgb, var(--badge, var(--space)) 16%, transparent);
+}
+
 /* ---------- Footer: spaces ---------- */
 
 .spaces {

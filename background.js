@@ -74,6 +74,23 @@ browser.runtime.onMessage.addListener((msg) => {
   if (msg?.type === "arcfox:changed") refreshWindowMarks();
 });
 
+/* ---------- Tab badges from other extensions ---------- */
+
+// Other extensions can tag tabs in the sidebar, e.g. Tab Driver marks tabs an AI agent controls:
+//   browser.runtime.sendMessage("arc@sidebar", {
+//     type: "arcsidebar:set-badges",
+//     badges: [{ tabId, label: "AI", title: "Claude is controlling this tab", color: "#7c5cff" }],
+//   });
+// Each call replaces that extension's badges; an empty list clears them. Badges last until
+// Firefox restarts or Arc updates; then Arc sends { type: "arcsidebar:ready" } to every
+// extension that set badges before, so they can send them again.
+browser.runtime.onMessageExternal.addListener((msg, sender) => {
+  if (msg?.type !== "arcsidebar:set-badges" || !sender.id) return;
+  return ArcFox.setBadges(sender.id, msg.badges).then(() => ({ ok: true }));
+});
+browser.runtime.onStartup.addListener(() => ArcFox.announceToBadgeProviders());
+browser.runtime.onInstalled.addListener(() => ArcFox.announceToBadgeProviders());
+
 browser.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type !== "arcfox:toggle-sidebar") return;
   const windowId = msg.windowId ?? sender.tab?.windowId;

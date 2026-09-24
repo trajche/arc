@@ -105,6 +105,26 @@ Firefox doesn't allow extensions to do these:
 
 Spaces, pins and favorites are stored locally; Firefox Sync's extension storage is too small for large Arc imports.
 
+## Tab badges for other extensions
+
+Other extensions can put small badges on tabs in the sidebar. [Tab Driver](https://github.com/trajche/tabdriver)
+uses this to tag tabs an AI agent is controlling.
+
+```js
+await browser.runtime.sendMessage("arc@sidebar", {
+  type: "arcsidebar:set-badges",
+  badges: [{ tabId: 12, label: "AI", title: "Claude is controlling this tab", color: "#7c5cff" }],
+});
+```
+
+- Each call replaces all badges from your extension. Send an empty list to clear them.
+- `label` is up to 12 characters, and `title` (the tooltip) up to 120. `color` is optional and must
+  be a hex color; the default is the space's color. At most 200 badges per extension.
+- Badges last until Firefox restarts or Arcsidebar updates. Arcsidebar then sends
+  `{ type: "arcsidebar:ready" }` to every extension that set badges before; send yours again when
+  you get it.
+- The call fails if Arcsidebar isn't installed. Retry now and then until it succeeds.
+
 ## Development
 
 ```sh
