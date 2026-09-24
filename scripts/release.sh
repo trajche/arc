@@ -23,8 +23,11 @@ RELEASE_FILE="web-ext-artifacts/arc-$VERSION.xpi"
 cp -f "$XPI" "$RELEASE_FILE"
 
 TAG="v$VERSION"
-gh release create "$TAG" "$RELEASE_FILE" --repo "$REPO" --title "Arc $VERSION" \
-  --notes "Install: download \`arc-$VERSION.xpi\` below and open it in Firefox. Installed copies update themselves."
+INSTALL_NOTE="Install: download \`arc-$VERSION.xpi\` below and open it in Firefox. Installed copies update themselves."
+# This version's section of CHANGELOG.md, if it has one, above the install line.
+NOTES="$(awk -v v="## $VERSION" '$0 == v { on = 1; next } on && /^## / { exit } on' CHANGELOG.md)"
+NOTES="$(printf '%s\n\n%s' "${NOTES:-}" "$INSTALL_NOTE")"
+gh release create "$TAG" "$RELEASE_FILE" --repo "$REPO" --title "Arcsidebar $VERSION" --notes "$NOTES"
 
 HASH="sha256:$(shasum -a 256 "$RELEASE_FILE" | cut -d' ' -f1)"
 LINK="https://github.com/$REPO/releases/download/$TAG/arc-$VERSION.xpi"
