@@ -1,5 +1,5 @@
 /* Parse Arc's StorableSidebar.json (+ optional Chromium "Local State" for
- * profile names) into a plan for Arc for Firefox.
+ * profile names) into a plan for Arcsidebar.
  *
  * Arc stores Swift dictionaries as flat arrays: [key, value, key, value, ...].
  * The sidebar container holds:

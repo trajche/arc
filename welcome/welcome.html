@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Welcome to Arc</title>
+  <title>Welcome to Arcsidebar</title>
   <link rel="icon" href="../icons/icon-32.png">
   <link rel="stylesheet" href="welcome.css">
 </head>
@@ -55,7 +55,7 @@
     <section class="copy">
       <header class="intro">
         <img class="logo" src="../icons/icon-128.png" alt="" width="64" height="64">
-        <h1>Arc, in Firefox</h1>
+        <h1>Arcsidebar</h1>
         <p>Your tabs live in the sidebar now. Hover a feature to see where it lives.</p>
         <p class="from-arc">Coming from Arc? <a href="../import/import.html">Import your spaces, pinned tabs and favorites</a>.</p>
       </header>
@@ -103,8 +103,8 @@
       </div>
 
       <section class="setup" aria-labelledby="setup-title">
-        <h2 id="setup-title">Give Arc the whole window</h2>
-        <p class="setup-lede">Firefox doesn’t let extensions hide its own tab strip and toolbar. A small setup script does it once: it finds the Firefox profile with Arc and adds Arc’s layout, keeping any customizations you already have.</p>
+        <h2 id="setup-title">Give Arcsidebar the whole window</h2>
+        <p class="setup-lede">Firefox doesn’t let extensions hide its own tab strip and toolbar. A small setup script does it once: it finds the Firefox profile with Arcsidebar and adds its layout, keeping any customizations you already have.</p>
 
         <div class="script" data-os="unix">
           <p>Paste this into Terminal, then quit Firefox and open it again:</p>
@@ -118,7 +118,7 @@
           <button class="copy-btn" data-copy="cmd-windows">Copy command</button>
           <p class="script-alt">Or <a href="https://raw.githubusercontent.com/trajche/arc/main/extras/setup/arc-setup.ps1" download="arc-setup.ps1">download the script</a> to read it first.</p>
         </div>
-        <p class="script-note">Run it again after updating Arc to refresh the layout.</p>
+        <p class="script-note">Run it again after updating Arcsidebar to refresh the layout.</p>
 
         <details class="manual">
           <summary>Set it up by hand instead</summary>
@@ -134,11 +134,11 @@
               <button class="copy-btn" data-file="../extras/userChrome.css">Copy userChrome.css</button>
             </li>
             <li>
-              <p>Back in the profile folder, save a file named <code>user.js</code> with this content. It opens Arc at startup and turns on horizontal tabs:</p>
+              <p>Back in the profile folder, save a file named <code>user.js</code> with this content. It opens Arcsidebar at startup and turns on horizontal tabs:</p>
               <button class="copy-btn" data-file="../extras/user.js">Copy user.js</button>
             </li>
             <li>
-              <p>Open <code>about:keyboard</code> and clear Firefox’s <b>New tab</b> and <b>Close tab</b> shortcuts, so <kbd>⌘T</kbd> opens Arc’s command bar and <kbd>⌘W</kbd> leaves a space its last tab. (The setup script does this by writing <code>customKeys.json</code>.)</p>
+              <p>Open <code>about:keyboard</code> and clear Firefox’s <b>New tab</b> and <b>Close tab</b> shortcuts, so <kbd>⌘T</kbd> opens Arcsidebar’s command bar and <kbd>⌘W</kbd> leaves a space its last tab. (The setup script does this by writing <code>customKeys.json</code>.)</p>
             </li>
             <li>
               <p>Quit Firefox with <kbd>⌘Q</kbd> and open it again.</p>

@@ -2,7 +2,7 @@
   <img src="docs/logo.png" alt="" width="128" height="128">
 </p>
 
-<h1 align="center">Arc for Firefox</h1>
+<h1 align="center">Arcsidebar</h1>
 
 <p align="center">An Arc-style sidebar for Firefox: favorites, spaces, pinned tabs and folders, a command bar for new tabs, and an address bar in the sidebar.</p>
 
@@ -69,7 +69,7 @@ Shortcuts can be changed in `about:addons` → ⚙ → *Manage Extension Shortcu
 
 ## Install
 
-Arc for Firefox needs **Firefox 155 or newer** (desktop; Firefox for Android has no sidebar).
+Arcsidebar needs **Firefox 155 or newer** (desktop; Firefox for Android has no sidebar).
 
 1. Download the latest signed `.xpi` from [Releases](https://github.com/trajche/arc/releases) and open it in Firefox. It updates itself from there (Firefox checks daily; `about:addons` → ⚙ → *Check for Updates* forces it).
 2. **Give Arc the whole window** (hides Firefox's tab strip and toolbar). Run the setup for your system — it finds the Firefox profile with Arc and adds Arc's layout, keeping any customizations you already have:
