@@ -238,6 +238,10 @@ body.drag-active .fav-drop-text { display: inline; }
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* A hairline, and only while the list is in use — Arc's sidebar shouldn't
+     spend width on a scrollbar. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
   display: flex;
   flex-direction: column;
   margin: 0 -8px;
@@ -266,13 +270,22 @@ body.pins-collapsed .space-head .chevron svg { transform: none; }
 .space-head:hover .space-more, .space-more:focus-visible { visibility: visible; }
 
 /* Pinned tabs scroll on their own, so open tabs below stay in view. */
-#pinned { flex: none; max-height: 50vh; overflow-y: auto; overscroll-behavior: contain; }
+#pinned {
+  flex: none;
+  max-height: 50vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+#pinned:hover, #pinned:focus-within { scrollbar-color: var(--divider) transparent; }
 body.pins-collapsed #pinned { display: none; }
 .space-head.drag-over { background: var(--row-hover); }
 .space-emoji { font-size: 13px; }
 
 /* Everything under the space header keeps its height; the area scrolls. */
 .scroll > * { flex-shrink: 0; }
+.scroll:hover, .scroll:focus-within { scrollbar-color: var(--divider) transparent; }
 
 .divider-row {
   display: flex;

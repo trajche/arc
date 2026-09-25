@@ -79,6 +79,12 @@ fi
 write_block() {
   local file="$1" begin="$2" end="$3" content="$4" tmp
   mkdir -p "$(dirname "$file")"
+  # A symlinked file belongs to something else (a dotfiles repo, or Arc's own
+  # source in a development profile): writing the block would edit that.
+  if [ -L "$file" ]; then
+    echo "Skipping $file: it is a symlink, so it is managed elsewhere."
+    return 0
+  fi
   touch "$file"
   tmp="$(mktemp)"
   # Drop the old block (and trailing blank lines), keep everything else.
@@ -168,6 +174,11 @@ if ($candidates.Count -gt 1) {
 # Replace (or remove) the marked block in a file, keeping everything else.
 function Write-Block($path, $begin, $end, $content) {
   New-Item -ItemType Directory -Force -Path (Split-Path $path) | Out-Null
+  # A linked file belongs to something else; writing the block would edit that.
+  if ((Test-Path $path) -and (Get-Item $path -Force).LinkType) {
+    Write-Host "Skipping $path: it is a link, so it is managed elsewhere."
+    return
+  }
   $text = if (Test-Path $path) { [IO.File]::ReadAllText($path) } else { "" }
   $pattern = [regex]::Escape($begin) + "[\\s\\S]*?" + [regex]::Escape($end) + "\\r?\\n?"
   $text = [regex]::Replace($text, $pattern, "").TrimEnd()

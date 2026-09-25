@@ -64,6 +64,12 @@ fi
 write_block() {
   local file="$1" begin="$2" end="$3" content="$4" tmp
   mkdir -p "$(dirname "$file")"
+  # A symlinked file belongs to something else (a dotfiles repo, or Arc's own
+  # source in a development profile): writing the block would edit that.
+  if [ -L "$file" ]; then
+    echo "Skipping $file: it is a symlink, so it is managed elsewhere."
+    return 0
+  fi
   touch "$file"
   tmp="$(mktemp)"
   # Drop the old block (and trailing blank lines), keep everything else.
@@ -189,13 +195,26 @@ IFS= read -r -d '' CSS <<'ARC_EOF' || true
    strip on the edge (it draws the border Arc removed otherwise). Firefox
    remembers the width it's dragged to. */
 #sidebar-splitter {
+  /* display: Firefox leaves the splitter hidden in some states; without this
+     there is nothing to grab. z-index clears the toolbox (10), which is
+     stacked above the sidebar for the extensions row. */
+  display: flex !important;
   appearance: none !important;
-  width: 5px !important;
-  min-width: 5px !important;
-  margin-inline-start: -5px !important;
+  width: 8px !important;
+  min-width: 8px !important;
+  margin-inline-start: -4px !important;
+  margin-inline-end: -4px !important;
   border: 0 !important;
   background: transparent !important;
-  z-index: 5 !important;
+  cursor: col-resize !important;
+  z-index: 11 !important;
+}
+
+/* No sidebar, no edge to drag (Option+Shift+S, or the panel closed): the strip
+   would otherwise sit over the page and swallow clicks. */
+#main-window[titlepreface*="\200B"] #sidebar-splitter,
+#main-window:has(#sidebar-box[hidden]) #sidebar-splitter {
+  display: none !important;
 }
 
 /* The panel header belongs to the panel's own document, and userChrome.css

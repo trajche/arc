@@ -47,6 +47,11 @@ if ($candidates.Count -gt 1) {
 # Replace (or remove) the marked block in a file, keeping everything else.
 function Write-Block($path, $begin, $end, $content) {
   New-Item -ItemType Directory -Force -Path (Split-Path $path) | Out-Null
+  # A linked file belongs to something else; writing the block would edit that.
+  if ((Test-Path $path) -and (Get-Item $path -Force).LinkType) {
+    Write-Host "Skipping $path: it is a link, so it is managed elsewhere."
+    return
+  }
   $text = if (Test-Path $path) { [IO.File]::ReadAllText($path) } else { "" }
   $pattern = [regex]::Escape($begin) + "[\s\S]*?" + [regex]::Escape($end) + "\r?\n?"
   $text = [regex]::Replace($text, $pattern, "").TrimEnd()
@@ -166,13 +171,26 @@ $css = @'
    strip on the edge (it draws the border Arc removed otherwise). Firefox
    remembers the width it's dragged to. */
 #sidebar-splitter {
+  /* display: Firefox leaves the splitter hidden in some states; without this
+     there is nothing to grab. z-index clears the toolbox (10), which is
+     stacked above the sidebar for the extensions row. */
+  display: flex !important;
   appearance: none !important;
-  width: 5px !important;
-  min-width: 5px !important;
-  margin-inline-start: -5px !important;
+  width: 8px !important;
+  min-width: 8px !important;
+  margin-inline-start: -4px !important;
+  margin-inline-end: -4px !important;
   border: 0 !important;
   background: transparent !important;
-  z-index: 5 !important;
+  cursor: col-resize !important;
+  z-index: 11 !important;
+}
+
+/* No sidebar, no edge to drag (Option+Shift+S, or the panel closed): the strip
+   would otherwise sit over the page and swallow clicks. */
+#main-window[titlepreface*="\200B"] #sidebar-splitter,
+#main-window:has(#sidebar-box[hidden]) #sidebar-splitter {
+  display: none !important;
 }
 
 /* The panel header belongs to the panel's own document, and userChrome.css
