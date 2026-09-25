@@ -195,18 +195,19 @@ IFS= read -r -d '' CSS <<'ARC_EOF' || true
    strip on the edge (it draws the border Arc removed otherwise). Firefox
    remembers the width it's dragged to. */
 #sidebar-splitter {
-  /* display: Firefox leaves the splitter hidden in some states; without this
-     there is nothing to grab. z-index clears the toolbox (10), which is
-     stacked above the sidebar for the extensions row. */
-  display: flex !important;
-  /* An older copy of this file (from a manual install) collapses the splitter;
-     overriding display alone would leave it invisible. */
+  /* No display override: a <splitter> drags because of its own frame, and
+     forcing a CSS display (flex) replaces that frame — the strip then looks
+     right but stops resizing once the page lays out. Visibility is stated
+     because an older copy of this file collapses the splitter. */
   visibility: visible !important;
   appearance: none !important;
   width: 8px !important;
   min-width: 8px !important;
-  margin-inline-start: -4px !important;
-  margin-inline-end: -4px !important;
+  /* Entirely over the sidebar: the half that used to hang into the content
+     area sits above a remote page, which swallows the drag once it loads. */
+  margin-inline-start: -8px !important;
+  margin-inline-end: 0 !important;
+  pointer-events: auto !important;
   border: 0 !important;
   background: transparent !important;
   cursor: col-resize !important;
@@ -216,7 +217,7 @@ IFS= read -r -d '' CSS <<'ARC_EOF' || true
 /* No sidebar, no edge to drag (Option+Shift+S, or the panel closed): the strip
    would otherwise sit over the page and swallow clicks. */
 #main-window[titlepreface*="\200B"] #sidebar-splitter,
-#main-window:has(#sidebar-box[hidden]) #sidebar-splitter {
+#sidebar-box[hidden] + #sidebar-splitter {
   display: none !important;
 }
 
