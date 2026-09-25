@@ -115,6 +115,14 @@ PREFS="\${PREFS%$'\\n'}"
 
 ${keys}
 
+# An Arc stylesheet outside Arc's block is an older copy from a manual
+# install: it keeps applying, and rules the new block doesn't restate win.
+if grep -q "arcfox-sidebar-width" "$PROFILE/chrome/userChrome.css" 2>/dev/null &&
+   ! grep -q "$CSS_BEGIN" "$PROFILE/chrome/userChrome.css" 2>/dev/null; then
+  echo "Note: chrome/userChrome.css already has an Arc stylesheet outside Arc's block."
+  echo "      Remove that older copy, or the two will fight."
+fi
+
 write_block "$PROFILE/chrome/userChrome.css" "$CSS_BEGIN" "$CSS_END" "$CSS"
 write_block "$PROFILE/user.js" "$JS_BEGIN" "$JS_END" "$PREFS"
 

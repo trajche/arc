@@ -175,6 +175,9 @@ $css = @'
      there is nothing to grab. z-index clears the toolbox (10), which is
      stacked above the sidebar for the extensions row. */
   display: flex !important;
+  /* An older copy of this file (from a manual install) collapses the splitter;
+     overriding display alone would leave it invisible. */
+  visibility: visible !important;
   appearance: none !important;
   width: 8px !important;
   min-width: 8px !important;
