@@ -433,8 +433,10 @@ user_pref("sidebar.verticalTabs", false);
 user_pref("browser.tabs.closeWindowWithLastTab", false);
 // Reopen windows and tabs, including the open ArcFox sidebar.
 user_pref("browser.startup.page", 3);
-// Fallback when there is no session to restore: ArcFox panel open, launcher hidden.
-user_pref("sidebar.backupState", "{\"command\":\"arc_sidebar-sidebar-action\",\"panelOpen\":true,\"panelWidth\":260,\"launcherVisible\":false,\"launcherExpanded\":false}");
+// Arc's panel state (open, and how wide) lives in sidebar.backupState, which
+// Firefox writes itself. The setup seeds it once in prefs.js instead of here:
+// a user_pref would be re-applied at every start, throwing away a width the
+// sidebar had been dragged to.
 '@
 
 # Firefox's own Ctrl+T is a reserved shortcut, so Arc's command bar can only
@@ -454,6 +456,17 @@ foreach ($key in @("key_newNavigatorTab", "key_close")) {
 
 Write-Block (Join-Path $target.FullName "chrome\userChrome.css") $CssBegin $CssEnd $css
 Write-Block (Join-Path $target.FullName "user.js") $JsBegin $JsEnd $prefs
+
+# Open Arc's panel on a profile that has never had it open. This goes into
+# prefs.js, which Firefox owns from then on: it records the width the sidebar
+# is dragged to, and a user_pref would overwrite that at every start.
+# Injected verbatim into the setup scripts by scripts/build-setup.mjs.
+$prefsPath = Join-Path $target.FullName "prefs.js"
+if (-not $Uninstall -and (Test-Path $prefsPath) -and -not ((Get-Content $prefsPath -Raw) -match 'sidebar\.backupState')) {
+  $seed = 'user_pref("sidebar.backupState", "{\"command\":\"arc_sidebar-sidebar-action\",\"panelOpen\":true,\"launcherVisible\":false,\"launcherExpanded\":false}");'
+  Add-Content $prefsPath $seed
+  Write-Host "Seeded sidebar.backupState so Arc's panel opens; Firefox keeps its width from now on."
+}
 
 if ($Uninstall) {
   Write-Host "Removed Arc's layout from $($target.Name). Restart Firefox."

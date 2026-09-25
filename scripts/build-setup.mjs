@@ -8,6 +8,8 @@ import fs from "node:fs";
 const css = fs.readFileSync("extras/userChrome.css", "utf8").trimEnd();
 const prefs = fs.readFileSync("extras/user.js", "utf8").trimEnd();
 const keys = fs.readFileSync("extras/setup-keys.sh.txt", "utf8").trimEnd();
+const seed = fs.readFileSync("extras/setup-seed.sh.txt", "utf8").trimEnd();
+const seedPs = fs.readFileSync("extras/setup-seed.ps1.txt", "utf8").trimEnd();
 
 for (const [name, text] of [["css", css], ["prefs", prefs]]) {
   if (text.includes("ARC_EOF") || /^'@/m.test(text)) throw new Error(`${name} contains a heredoc terminator`);
@@ -116,6 +118,8 @@ ${keys}
 write_block "$PROFILE/chrome/userChrome.css" "$CSS_BEGIN" "$CSS_END" "$CSS"
 write_block "$PROFILE/user.js" "$JS_BEGIN" "$JS_END" "$PREFS"
 
+${seed}
+
 if [ "$UNINSTALL" -eq 1 ]; then
   echo "Removed Arc's layout from $(basename "$PROFILE")."
   echo "Restart Firefox. user.js prefs already applied stay until you change them in about:config."
@@ -214,6 +218,8 @@ foreach ($key in @("key_newNavigatorTab", "key_close")) {
 
 Write-Block (Join-Path $target.FullName "chrome\\userChrome.css") $CssBegin $CssEnd $css
 Write-Block (Join-Path $target.FullName "user.js") $JsBegin $JsEnd $prefs
+
+${seedPs}
 
 if ($Uninstall) {
   Write-Host "Removed Arc's layout from $($target.Name). Restart Firefox."

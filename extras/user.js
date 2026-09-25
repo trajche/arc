@@ -9,5 +9,7 @@ user_pref("sidebar.verticalTabs", false);
 user_pref("browser.tabs.closeWindowWithLastTab", false);
 // Reopen windows and tabs, including the open ArcFox sidebar.
 user_pref("browser.startup.page", 3);
-// Fallback when there is no session to restore: ArcFox panel open, launcher hidden.
-user_pref("sidebar.backupState", "{\"command\":\"arc_sidebar-sidebar-action\",\"panelOpen\":true,\"panelWidth\":260,\"launcherVisible\":false,\"launcherExpanded\":false}");
+// Arc's panel state (open, and how wide) lives in sidebar.backupState, which
+// Firefox writes itself. The setup seeds it once in prefs.js instead of here:
+// a user_pref would be re-applied at every start, throwing away a width the
+// sidebar had been dragged to.
