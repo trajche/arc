@@ -296,7 +296,7 @@ $css = @'
 
 /* Sidebar hidden with Option+Shift+S (Arc sets an invisible window-title marker),
    or closed: the page goes full width and the extensions row hides too. */
-#main-window[titlepreface="\200B"] :is(#sidebar-box, #nav-bar),
+#main-window[titlepreface*="\200B"] :is(#sidebar-box, #nav-bar),
 #main-window:has(#sidebar-box[hidden]) #nav-bar {
   display: none !important;
 }
