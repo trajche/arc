@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+Run the setup script again for these: they live in the profile, not in the
+add-on.
+
+- The sidebar can be dragged to any width, for real this time. Three things
+  were breaking it: an older copy of the stylesheet left in the profile by a
+  manual install, a display override that replaced the splitter's own frame,
+  and the marker Arc writes into the window title — a window that had ever
+  been hidden with Option+Shift+S lost its resize handle without looking
+  hidden. Option+Shift+S was broken by the same mismatch and works again.
+- Firefox keeps the width the sidebar is dragged to. It was pinned in
+  user.js, which is applied at every start, so it reset on every launch.
+- The setup leaves symlinked files alone and says so when it finds an Arc
+  stylesheet outside the block it manages.
+- Thinner scrollbars in the tab and pinned lists (this one is in the add-on).
+
 ## 0.4.5
 
 - Arrow keys in the command bar keep working when the mouse is resting over a
