@@ -224,7 +224,18 @@ foreach ($key in @("key_newNavigatorTab", "key_close")) {
 }
 [IO.File]::WriteAllText($keysPath, (ConvertTo-Json $keys -Compress -Depth 5), (New-Object Text.UTF8Encoding $false))
 
-Write-Block (Join-Path $target.FullName "chrome\\userChrome.css") $CssBegin $CssEnd $css
+# An Arc stylesheet outside Arc's block is an older copy from a manual
+# install: it keeps applying, and rules the new block doesn't restate win.
+$cssPath = Join-Path $target.FullName "chrome\\userChrome.css"
+if ((Test-Path $cssPath)) {
+  $existing = Get-Content $cssPath -Raw
+  if ($existing -match "arcfox-sidebar-width" -and -not $existing.Contains($CssBegin)) {
+    Write-Host "Note: chrome\\userChrome.css already has an Arc stylesheet outside Arc's block."
+    Write-Host "      Remove that older copy, or the two will fight."
+  }
+}
+
+Write-Block $cssPath $CssBegin $CssEnd $css
 Write-Block (Join-Path $target.FullName "user.js") $JsBegin $JsEnd $prefs
 
 ${seedPs}
