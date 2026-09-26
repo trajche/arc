@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.7
+
+- Favorites stay four across at the usual sidebar width, and gain a column
+  roughly every 64px as the sidebar is dragged wider, instead of the tiles
+  growing with it.
+- Tab badges other extensions set can be an icon (bot, sparkles), sit at the
+  start of the row, or pulse.
+
 ## 0.4.6
 
 Run the setup script again for the layout ones: they live in the profile, not
