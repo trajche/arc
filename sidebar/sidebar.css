@@ -149,11 +149,19 @@ svg { display: block; }
 
 .fav-grid {
   display: grid;
-  /* Reflows when the sidebar is dragged wider or narrower. */
-  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  /* Four across at Arc's usual width. Dragging the sidebar wider adds columns
+     rather than inflating the tiles — favorites stay a quiet strip, not the
+     biggest thing in the sidebar. The panel is its own document, so these
+     widths are the sidebar's, not the window's. */
+  grid-template-columns: repeat(var(--fav-cols, 4), minmax(0, 1fr));
   gap: 8px;
   min-height: 20px;
 }
+
+@media (min-width: 320px) { .fav-grid { --fav-cols: 5; } }
+@media (min-width: 384px) { .fav-grid { --fav-cols: 6; } }
+@media (min-width: 448px) { .fav-grid { --fav-cols: 7; } }
+@media (min-width: 512px) { .fav-grid { --fav-cols: 8; } }
 
 .fav-grid.empty {
   position: relative;
@@ -437,6 +445,12 @@ body.pins-collapsed #pinned { display: none; }
   color: var(--badge, var(--space));
   background: color-mix(in srgb, var(--badge, var(--space)) 16%, transparent);
 }
+/* Icon badges (Lucide), e.g. Tab Driver's robot at the start of an agent's tab. */
+.tab .badge.icon { display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border-radius: 6px; }
+.tab .badge.icon svg { width: 13px; height: 13px; }
+.tab .badge.pulse { animation: badge-pulse 1.4s ease-in-out infinite; }
+@keyframes badge-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .tab .badge.pulse { animation: none; } }
 
 /* ---------- Footer: spaces ---------- */
 
