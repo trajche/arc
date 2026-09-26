@@ -127,6 +127,20 @@ await browser.runtime.sendMessage("arc@sidebar", {
   you get it.
 - The call fails if Arcsidebar isn't installed. Retry now and then until it succeeds.
 
+They can also add items to the tab menu (right-click on a tab in the sidebar):
+
+```js
+await browser.runtime.sendMessage("arc@sidebar", {
+  type: "arcsidebar:set-tab-menu",
+  items: [{ id: "control", title: "Let AI agents control this tab", exceptTabIds: [12] }],
+});
+// A click arrives as { type: "arcsidebar:menu-clicked", id: "control", tabId }.
+```
+
+- Each call replaces your items (up to 5). `tabIds` shows an item only on those tabs, `exceptTabIds`
+  hides it on them.
+- Items last as long as badges, and the same `arcsidebar:ready` message asks you to send them again.
+
 ## Development
 
 ```sh

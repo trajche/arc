@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.8
+
+- Other extensions can add items to the sidebar's tab menu, the same way they
+  set badges: up to five, optionally limited to certain tabs, with clicks sent
+  back to the extension that added them.
+
 ## 0.4.7
 
 - Favorites stay four across at the usual sidebar width, and gain a column

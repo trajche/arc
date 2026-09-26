@@ -10,6 +10,8 @@ const MENU = {
 };
 const MOVE_PREFIX = "arcfox-move:";
 let moveChildren = [];
+const EXT_PREFIX = "arcfox-ext:"; // tab menu items other extensions added
+const extensionItems = new Map(); // menu id -> { extensionId, id, title } (null for the separator)
 
 /* ---------- Sidebar show/hide (Option+Shift+S) ----------
  * The sidebar stays open as far as Firefox knows; hiding is a window title
@@ -86,9 +88,18 @@ browser.runtime.onMessage.addListener((msg) => {
 // Each call replaces that extension's badges; an empty list clears them. Badges last until
 // Firefox restarts or Arc updates; then Arc sends { type: "arcsidebar:ready" } to every
 // extension that set badges before, so they can send them again.
+//
+// They can also add items to the sidebar's tab menu (right-click on a tab):
+//   browser.runtime.sendMessage("arc@sidebar", {
+//     type: "arcsidebar:set-tab-menu",
+//     items: [{ id: "control", title: "Let AI agents control this tab", exceptTabIds: [12] }],
+//   });
+// tabIds limits an item to those tabs, exceptTabIds hides it on them. A click sends
+// { type: "arcsidebar:menu-clicked", id, tabId } back to that extension. Same lifetime as badges.
 browser.runtime.onMessageExternal.addListener((msg, sender) => {
-  if (msg?.type !== "arcsidebar:set-badges" || !sender.id) return;
-  return ArcFox.setBadges(sender.id, msg.badges).then(() => ({ ok: true }));
+  if (!sender.id) return;
+  if (msg?.type === "arcsidebar:set-badges") return ArcFox.setBadges(sender.id, msg.badges).then(() => ({ ok: true }));
+  if (msg?.type === "arcsidebar:set-tab-menu") return ArcFox.setTabMenu(sender.id, msg.items).then(() => ({ ok: true }));
 });
 browser.runtime.onStartup.addListener(() => ArcFox.announceToBadgeProviders());
 browser.runtime.onInstalled.addListener(() => ArcFox.announceToBadgeProviders());
@@ -414,6 +425,8 @@ browser.menus.onShown.addListener(async (info, tab) => {
 
   for (const id of moveChildren) browser.menus.remove(id);
   moveChildren = [];
+  for (const id of extensionItems.keys()) browser.menus.remove(id);
+  extensionItems.clear();
   const current = (await ArcFox.getTabSpace(tab.id)) || (await ArcFox.getWindowSpace(tab.windowId, state));
   for (const space of state.spaces) {
     const id = MOVE_PREFIX + space.id;
@@ -426,11 +439,27 @@ browser.menus.onShown.addListener(async (info, tab) => {
     });
     moveChildren.push(id);
   }
+  // Items other extensions added (e.g. Tab Driver's "Let AI agents control this tab").
+  const extra = await ArcFox.tabMenuFor(tab.id);
+  if (extra.length) {
+    browser.menus.create({ id: EXT_PREFIX + "separator", type: "separator", contexts: ["tab"] });
+    extensionItems.set(EXT_PREFIX + "separator", null);
+  }
+  extra.forEach((item, i) => {
+    const id = EXT_PREFIX + i;
+    browser.menus.create({ id, title: item.title, contexts: ["tab"] });
+    extensionItems.set(id, item);
+  });
   browser.menus.refresh();
 });
 
 browser.menus.onClicked.addListener(async (info, tab) => {
   const id = String(info.menuItemId);
+  const item = extensionItems.get(id);
+  if (item) {
+    browser.runtime.sendMessage(item.extensionId, { type: "arcsidebar:menu-clicked", id: item.id, tabId: tab.id }).catch(() => {});
+    return;
+  }
   if (id.startsWith(MOVE_PREFIX)) {
     await ArcFox.moveTabToSpace(tab.id, id.slice(MOVE_PREFIX.length));
     return;

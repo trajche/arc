@@ -27,7 +27,8 @@ const ArcFox = (() => {
   const PIN_PREFIX = "pins:";
   const ICON_KEY = "faviconCache";
   const BADGES_KEY = "tabBadges"; // storage.session: { [extensionId]: [{ tabId, label, title, color }] }
-  const BADGE_PROVIDERS_KEY = "badgeProviders"; // storage.local: extensions that have set badges
+  const BADGE_PROVIDERS_KEY = "badgeProviders"; // storage.local: extensions that have set badges or menu items
+  const TAB_MENU_KEY = "tabMenus"; // storage.session: { [extensionId]: [{ id, title, tabIds, exceptTabIds }] }
   const ITEM_VALUE = "arcfoxFav"; // name kept so bindings from 0.1.x survive
   const SPACE_VALUE = "arcfoxSpace";
   const LAST_VALUE = "arcfoxLast";
@@ -831,10 +832,7 @@ const ArcFox = (() => {
     if (clean.length) all[extensionId] = clean;
     else delete all[extensionId];
     await browser.storage.session.set({ [BADGES_KEY]: all });
-    const { [BADGE_PROVIDERS_KEY]: providers = [] } = await browser.storage.local.get(BADGE_PROVIDERS_KEY);
-    if (!providers.includes(extensionId)) {
-      await browser.storage.local.set({ [BADGE_PROVIDERS_KEY]: [...providers, extensionId] });
-    }
+    await rememberProvider(extensionId);
   }
 
   /** Badges by tab id, from every extension. */
@@ -847,7 +845,52 @@ const ArcFox = (() => {
     return byTab;
   }
 
-  /** Badges live in session storage: ask the extensions that set them before to send them again. */
+  /* ---------- Tab menu items from other extensions ---------- */
+
+  const MAX_MENU_ITEMS = 5; // per extension
+  const tabIdList = (v) => (Array.isArray(v) ? v.filter(Number.isInteger).slice(0, 1000) : null);
+
+  /** Replace the tab menu items `extensionId` adds. Titles are plain text. */
+  function setTabMenu(extensionId, items) {
+    const write = badgeWrites.then(() => writeTabMenu(extensionId, items));
+    badgeWrites = write.catch(() => {});
+    return write;
+  }
+
+  async function writeTabMenu(extensionId, items) {
+    const clean = (Array.isArray(items) ? items : [])
+      .slice(0, MAX_MENU_ITEMS)
+      .filter((m) => /^[\w-]{1,64}$/.test(m?.id || "") && text(m.title, 60))
+      .map((m) => ({ id: m.id, title: text(m.title, 60), tabIds: tabIdList(m.tabIds), exceptTabIds: tabIdList(m.exceptTabIds) }));
+    const { [TAB_MENU_KEY]: all = {} } = await browser.storage.session.get(TAB_MENU_KEY);
+    if (clean.length) all[extensionId] = clean;
+    else delete all[extensionId];
+    await browser.storage.session.set({ [TAB_MENU_KEY]: all });
+    await rememberProvider(extensionId);
+  }
+
+  /** Menu items other extensions want on `tabId`, as [{ extensionId, id, title }]. */
+  async function tabMenuFor(tabId) {
+    const { [TAB_MENU_KEY]: all = {} } = await browser.storage.session.get(TAB_MENU_KEY).catch(() => ({}));
+    const out = [];
+    for (const [extensionId, items] of Object.entries(all)) {
+      for (const m of items) {
+        if (m.tabIds && !m.tabIds.includes(tabId)) continue;
+        if (m.exceptTabIds?.includes(tabId)) continue;
+        out.push({ extensionId, id: m.id, title: m.title });
+      }
+    }
+    return out;
+  }
+
+  async function rememberProvider(extensionId) {
+    const { [BADGE_PROVIDERS_KEY]: providers = [] } = await browser.storage.local.get(BADGE_PROVIDERS_KEY);
+    if (!providers.includes(extensionId)) {
+      await browser.storage.local.set({ [BADGE_PROVIDERS_KEY]: [...providers, extensionId] });
+    }
+  }
+
+  /** Badges and menu items live in session storage: ask the extensions that set them before to send them again. */
   async function announceToBadgeProviders() {
     const { [BADGE_PROVIDERS_KEY]: providers = [] } = await browser.storage.local.get(BADGE_PROVIDERS_KEY);
     for (const id of providers) browser.runtime.sendMessage(id, { type: "arcsidebar:ready" }).catch(() => {});
@@ -856,6 +899,8 @@ const ArcFox = (() => {
   return {
     setBadges,
     getBadges,
+    setTabMenu,
+    tabMenuFor,
     announceToBadgeProviders,
     BADGES_KEY,
     FAV_KEY,
