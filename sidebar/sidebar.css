@@ -174,11 +174,11 @@ svg { display: block; }
   position: absolute;
   top: 4px; right: 4px;
   width: 20px; height: 20px;
-  font-size: 10px;
   opacity: 0;
   transition: opacity 120ms;
 }
 .fav-grid.empty:hover .fav-hint-close { opacity: 1; }
+.fav-hint-close svg { width: 11px; height: 11px; }
 
 .fav-drop-text { display: none; }
 
@@ -290,31 +290,39 @@ body.pins-collapsed #pinned { display: none; }
 .divider-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
   padding: 6px 8px;
 }
 .divider { flex: 1; height: 1px; background: var(--divider); }
 
-.link-btn {
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font-size: 11px;
-  padding: 0 2px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 120ms;
-}
-.divider-row:hover .link-btn, .scroll:hover .link-btn { opacity: 1; }
+/* The links are hidden until the row is hovered, and hidden means no width:
+   otherwise the divider stops short of an invisible label and reads as a
+   half-drawn line. */
+.link-btn,
 .link-dot {
   color: var(--muted);
   font-size: 11px;
+  white-space: nowrap;
   opacity: 0;
-  transition: opacity 120ms;
+  max-width: 0;
+  margin-inline-start: 0;
+  padding: 0;
+  overflow: hidden;
+  transition: opacity 120ms, max-width 160ms, margin-inline-start 160ms;
 }
-.divider-row:hover .link-dot { opacity: 1; }
-.divider-row .link-btn, .divider-row .link-dot { margin-inline-start: -4px; }
-.divider-row .divider { margin-inline-end: 4px; }
+.link-btn {
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.divider-row:hover .link-btn,
+.divider-row:hover .link-dot,
+.scroll:hover .link-btn,
+.scroll:hover .link-dot {
+  opacity: 1;
+  max-width: 6rem;
+  margin-inline-start: 6px;
+}
 .link-btn:hover { color: var(--fg); }
 
 .new-tab {
@@ -400,8 +408,20 @@ body.pins-collapsed #pinned { display: none; }
 
 .tab .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tab .close { visibility: hidden; width: 26px; height: 26px; border-radius: 7px; }
-.tab .close svg { width: 12px; height: 12px; }
+.tab .close svg { width: 13px; height: 13px; }
 .tab:hover .close { visibility: visible; }
+/* Arc puts the speaker right after the favicon, as a small chip. */
+.tab .audio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-inline-end: 2px;
+  border-radius: 6px;
+  color: var(--fg);
+  background: var(--tile);
+}
+.tab .audio svg { width: 14px; height: 14px; }
+.tab .audio:hover { background: var(--tile-hover); }
 .tab .audio[hidden] { display: none; }
 
 /* Badges other extensions put on tabs (e.g. Tab Driver's "AI" on agent-controlled tabs). */

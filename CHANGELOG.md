@@ -1,9 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.4.6
 
-Run the setup script again for these: they live in the profile, not in the
-add-on.
+Run the setup script again for the layout ones: they live in the profile, not
+in the add-on.
+
+- Lucide icons throughout. The sound indicator is a speaker glyph in a chip
+  next to the favicon, where Arc puts it, instead of an emoji at the end of
+  the row.
+- The line above the tab list runs the full width when "New Tab · Clear" is
+  hidden, instead of stopping short at invisible labels.
 
 - The sidebar can be dragged to any width, for real this time. Three things
   were breaking it: an older copy of the stylesheet left in the profile by a

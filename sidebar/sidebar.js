@@ -203,24 +203,14 @@ function renderFavorites() {
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-function closeIcon() {
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", "0 0 12 12");
-  const path = document.createElementNS(SVG_NS, "path");
-  path.setAttribute("d", "M2.5 2.5l7 7M9.5 2.5l-7 7");
-  path.setAttribute("stroke", "currentColor");
-  path.setAttribute("stroke-width", "1.6");
-  path.setAttribute("stroke-linecap", "round");
-  svg.append(path);
-  return svg;
-}
+const closeIcon = () => lucide(LUCIDE.x);
 
-/** favicon, title, mute, close: the parts fillRow() updates. */
+/** favicon, mute, title, badges, close: the parts fillRow() updates. */
 const rowParts = () => [
   h("span", { className: "favicon" }),
+  h("button", { className: "icon-btn audio" }),
   h("span", { className: "title" }),
   h("span", { className: "badges" }),
-  h("button", { className: "icon-btn audio" }),
   h("button", { className: "icon-btn close", title: "Close tab" }, closeIcon()),
 ];
 
@@ -234,7 +224,7 @@ function makeSplitRow() {
 }
 
 function fillRow(el, tab, { title, url, icon }) {
-  const [favicon, titleEl, badgesEl, audio] = el.children;
+  const [favicon, audio, titleEl, badgesEl] = el.children;
   el.classList.toggle("active", !!tab?.active);
   el.classList.toggle("discarded", !!tab?.discarded);
   el.classList.toggle("loading", tab?.status === "loading" && !tab.discarded);
@@ -243,7 +233,11 @@ function fillRow(el, tab, { title, url, icon }) {
   setIcon(favicon, icon, url);
   const muted = !!tab?.mutedInfo?.muted;
   audio.hidden = !(tab?.audible || muted);
-  audio.textContent = muted ? "🔇" : "🔊";
+  const want = muted ? "off" : "on";
+  if (audio.dataset.state !== want) {
+    audio.dataset.state = want;
+    audio.replaceChildren(lucide(muted ? LUCIDE.volumeOff : LUCIDE.volume));
+  }
   audio.title = muted ? "Unmute tab" : "Mute tab";
   fillBadges(badgesEl, (tab && state.badges.get(tab.id)) || []);
 }
@@ -258,6 +252,29 @@ function fillBadges(el, badges) {
       h("span", { className: "badge", title: b.title, style: b.color ? { "--badge": b.color } : undefined }, b.label)
     )
   );
+}
+
+/** Lucide icons: 24-grid, 2px round strokes. https://lucide.dev (ISC) */
+const LUCIDE = {
+  volume:
+    "M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298zM16 9a5 5 0 0 1 0 6m3.364 3.364a9 9 0 0 0 0-12.728",
+  volumeOff:
+    "M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298zm5.5 9.798l5-5m-5 0l5 5",
+  x: "M18 6L6 18M6 6l12 12",
+};
+
+function lucide(d) {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "2");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+  svg.append(path);
+  return svg;
 }
 
 function svgIcon(d) {
@@ -460,7 +477,7 @@ const favHint = [
       title: "Hide (drag a tab here any time to add a favorite)",
       onclick: () => browser.storage.local.set({ [HIDE_FAV_HINT]: true }),
     },
-    "✕"
+    closeIcon()
   ),
 ];
 
