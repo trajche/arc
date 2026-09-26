@@ -207,6 +207,7 @@ const closeIcon = () => lucide(LUCIDE.x);
 
 /** favicon, mute, title, badges, close: the parts fillRow() updates. */
 const rowParts = () => [
+  h("span", { className: "badges start" }),
   h("span", { className: "favicon" }),
   h("button", { className: "icon-btn audio" }),
   h("span", { className: "title" }),
@@ -224,7 +225,7 @@ function makeSplitRow() {
 }
 
 function fillRow(el, tab, { title, url, icon }) {
-  const [favicon, audio, titleEl, badgesEl] = el.children;
+  const [startBadgesEl, favicon, audio, titleEl, badgesEl] = el.children;
   el.classList.toggle("active", !!tab?.active);
   el.classList.toggle("discarded", !!tab?.discarded);
   el.classList.toggle("loading", tab?.status === "loading" && !tab.discarded);
@@ -239,7 +240,9 @@ function fillRow(el, tab, { title, url, icon }) {
     audio.replaceChildren(lucide(muted ? LUCIDE.volumeOff : LUCIDE.volume));
   }
   audio.title = muted ? "Unmute tab" : "Mute tab";
-  fillBadges(badgesEl, (tab && state.badges.get(tab.id)) || []);
+  const badges = (tab && state.badges.get(tab.id)) || [];
+  fillBadges(startBadgesEl, badges.filter((b) => b.position === "start"));
+  fillBadges(badgesEl, badges.filter((b) => b.position !== "start"));
 }
 
 /** Badges other extensions set on a tab (see "Tab badges" in background.js). */
@@ -248,9 +251,12 @@ function fillBadges(el, badges) {
   if (el.dataset.key === key) return;
   el.dataset.key = key;
   el.replaceChildren(
-    ...badges.map((b) =>
-      h("span", { className: "badge", title: b.title, style: b.color ? { "--badge": b.color } : undefined }, b.label)
-    )
+    ...badges.map((b) => {
+      const icon = LUCIDE[b.icon];
+      const className = ["badge", icon && "icon", b.pulse && "pulse"].filter(Boolean).join(" ");
+      const style = b.color ? { "--badge": b.color } : undefined;
+      return h("span", { className, title: b.title, style, "aria-label": b.label || b.title }, icon ? lucide(icon) : b.label);
+    })
   );
 }
 
@@ -261,6 +267,10 @@ const LUCIDE = {
   volumeOff:
     "M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298zm5.5 9.798l5-5m-5 0l5 5",
   x: "M18 6L6 18M6 6l12 12",
+  // Badge icons other extensions can pick (see BADGE_ICONS in shared/store.js).
+  bot: "M12 8V4H8M6 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM2 14h2M20 14h2M15 13v2M9 13v2",
+  sparkles:
+    "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594zM20 2v4M22 4h-4M2 20a2 2 0 1 0 4 0a2 2 0 1 0-4 0",
 };
 
 function lucide(d) {

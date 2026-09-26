@@ -81,6 +81,8 @@ browser.runtime.onMessage.addListener((msg) => {
 //     type: "arcsidebar:set-badges",
 //     badges: [{ tabId, label: "AI", title: "Claude is controlling this tab", color: "#7c5cff" }],
 //   });
+// Optional: icon ("bot" or "sparkles", drawn instead of the label), position ("start" puts it
+// at the left of the row; default "end"), pulse (true makes it blink).
 // Each call replaces that extension's badges; an empty list clears them. Badges last until
 // Firefox restarts or Arc updates; then Arc sends { type: "arcsidebar:ready" } to every
 // extension that set badges before, so they can send them again.

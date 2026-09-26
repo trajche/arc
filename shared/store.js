@@ -801,12 +801,13 @@ const ArcFox = (() => {
 
   const MAX_BADGES = 200; // per extension
   const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const BADGE_ICONS = ["bot", "sparkles"]; // drawn by the sidebar (Lucide); no outside SVG
   const text = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
   // One write at a time: each one reads and rewrites the whole badge map.
   let badgeWrites = Promise.resolve();
 
-  /** Replace the badges `extensionId` shows on tabs. Only plain text and hex colors get through. */
+  /** Replace the badges `extensionId` shows on tabs. Only plain text, hex colors and known icon names get through. */
   function setBadges(extensionId, badges) {
     const write = badgeWrites.then(() => writeBadges(extensionId, badges));
     badgeWrites = write.catch(() => {});
@@ -816,12 +817,15 @@ const ArcFox = (() => {
   async function writeBadges(extensionId, badges) {
     const clean = (Array.isArray(badges) ? badges : [])
       .slice(0, MAX_BADGES)
-      .filter((b) => Number.isInteger(b?.tabId) && text(b.label, 12))
+      .filter((b) => Number.isInteger(b?.tabId) && (text(b.label, 12) || BADGE_ICONS.includes(b.icon)))
       .map((b) => ({
         tabId: b.tabId,
         label: text(b.label, 12),
         title: text(b.title, 120),
         color: HEX_COLOR.test(b.color || "") ? b.color : "",
+        icon: BADGE_ICONS.includes(b.icon) ? b.icon : "",
+        position: b.position === "start" ? "start" : "end",
+        pulse: b.pulse === true,
       }));
     const { [BADGES_KEY]: all = {} } = await browser.storage.session.get(BADGES_KEY);
     if (clean.length) all[extensionId] = clean;

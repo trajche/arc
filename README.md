@@ -120,6 +120,8 @@ await browser.runtime.sendMessage("arc@sidebar", {
 - Each call replaces all badges from your extension. Send an empty list to clear them.
 - `label` is up to 12 characters, and `title` (the tooltip) up to 120. `color` is optional and must
   be a hex color; the default is the space's color. At most 200 badges per extension.
+- `icon` shows a built-in [Lucide](https://lucide.dev) icon instead of the label: `"bot"` or `"sparkles"`.
+  `position: "start"` puts the badge at the left of the row (default: right). `pulse: true` makes it blink.
 - Badges last until Firefox restarts or Arcsidebar updates. Arcsidebar then sends
   `{ type: "arcsidebar:ready" }` to every extension that set badges before; send yours again when
   you get it.
