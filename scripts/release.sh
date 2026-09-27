@@ -15,12 +15,23 @@ ADDON_ID="arc@sidebar"
 
 [ -z "$(git status --porcelain)" ] || { echo "Commit or stash your changes first." >&2; exit 1; }
 
+# A half-finished release leaves the bump behind: pick it up instead of bumping
+# again, so the number the last run uploaded is the one that gets released.
+
 # sign.sh bumps the version (patch by default), then signs an unlisted build.
-./sign.sh "${1:-patch}"
+# It can fail after the upload has already landed — the connection drops, or the
+# version goes to review and web-ext stops waiting. addons.mozilla.org then
+# refuses that version number forever, so never re-run it: take the build from
+# the API instead.
+./sign.sh "${1:-patch}" || echo "Signing didn't return a file; checking addons.mozilla.org."
 VERSION="$(node -p "require('./manifest.json').version")"
-XPI="$(ls -t web-ext-artifacts/*.xpi | head -1)"
 RELEASE_FILE="web-ext-artifacts/arc-$VERSION.xpi"
-cp -f "$XPI" "$RELEASE_FILE"
+XPI="$(ls -t web-ext-artifacts/*"$VERSION"*.xpi 2>/dev/null | head -1 || true)"
+if [ -n "$XPI" ]; then
+  cp -f "$XPI" "$RELEASE_FILE"
+else
+  node scripts/amo.mjs fetch "$VERSION" "$RELEASE_FILE"
+fi
 
 TAG="v$VERSION"
 INSTALL_NOTE="Install: download \`arc-$VERSION.xpi\` below and open it in Firefox. Installed copies update themselves."
