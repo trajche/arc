@@ -42,11 +42,21 @@ fi
 # stale code under a new number, so compare it against a fresh local build.
 npx web-ext build --overwrite-dest >/dev/null
 LOCAL_ZIP="$(ls -t web-ext-artifacts/*.zip | head -1)"
-DIFFERENT=""
-while IFS= read -r entry; do
+# Signing rewrites manifest.json without its trailing newline, so a hash that
+# doesn't match is compared again with trailing whitespace ignored.
+same_entry() {
+  local entry="$1" a b
   a="$(unzip -p "$RELEASE_FILE" "$entry" 2>/dev/null | shasum -a 256 | cut -d' ' -f1)"
   b="$(unzip -p "$LOCAL_ZIP" "$entry" 2>/dev/null | shasum -a 256 | cut -d' ' -f1)"
-  [ "$a" = "$b" ] || DIFFERENT="$DIFFERENT $entry"
+  [ "$a" = "$b" ] && return 0
+  a="$(printf '%s' "$(unzip -p "$RELEASE_FILE" "$entry" 2>/dev/null)" | shasum -a 256 | cut -d' ' -f1)"
+  b="$(printf '%s' "$(unzip -p "$LOCAL_ZIP" "$entry" 2>/dev/null)" | shasum -a 256 | cut -d' ' -f1)"
+  [ "$a" = "$b" ]
+}
+
+DIFFERENT=""
+while IFS= read -r entry; do
+  same_entry "$entry" || DIFFERENT="$DIFFERENT $entry"
 done < <(unzip -Z1 "$LOCAL_ZIP" | grep -v '/$')
 if [ -n "$DIFFERENT" ]; then
   echo "The signed build for $VERSION isn't this code. It differs in:" >&2
