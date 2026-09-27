@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The setup turns on Firefox's Picture-in-Picture on tab switch, so a playing
+  video pops out when you leave its tab and returns when you come back, the way
+  Arc does. Firefox has this built in; some profiles ship with it off.
+
 - Dragging a tab above the list drops it at the top. The strip with the divider
   and "New Tab · Clear" accepted nothing, so the line stayed on screen while the
   drop was refused.
