@@ -21,8 +21,10 @@ ADDON_ID="arc@sidebar"
 # refuses that version number forever, so never upload it again: when this
 # version is already there, finish that release instead of bumping past it.
 VERSION="$(node -p "require('./manifest.json').version")"
+# The tag lives on GitHub (gh release create makes it there), so ask GitHub
+# rather than the local clone, which may never have fetched it.
 if node scripts/amo.mjs status "$VERSION" >/dev/null 2>&1 &&
-   ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+   ! gh release view "v$VERSION" --repo "$REPO" >/dev/null 2>&1; then
   # Uploaded but never released: finish that one rather than burning its number.
   echo "Version $VERSION is already on addons.mozilla.org; finishing that release."
 else
