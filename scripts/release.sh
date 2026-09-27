@@ -15,22 +15,43 @@ ADDON_ID="arc@sidebar"
 
 [ -z "$(git status --porcelain)" ] || { echo "Commit or stash your changes first." >&2; exit 1; }
 
-# A half-finished release leaves the bump behind: pick it up instead of bumping
-# again, so the number the last run uploaded is the one that gets released.
-
 # sign.sh bumps the version (patch by default), then signs an unlisted build.
 # It can fail after the upload has already landed — the connection drops, or the
 # version goes to review and web-ext stops waiting. addons.mozilla.org then
-# refuses that version number forever, so never re-run it: take the build from
-# the API instead.
-./sign.sh "${1:-patch}" || echo "Signing didn't return a file; checking addons.mozilla.org."
+# refuses that version number forever, so never upload it again: when this
+# version is already there, finish that release instead of bumping past it.
 VERSION="$(node -p "require('./manifest.json').version")"
+if node scripts/amo.mjs status "$VERSION" >/dev/null 2>&1; then
+  echo "Version $VERSION is already on addons.mozilla.org; finishing that release."
+else
+  ./sign.sh "${1:-patch}" || echo "Signing didn't return a file; checking addons.mozilla.org."
+  VERSION="$(node -p "require('./manifest.json').version")"
+fi
 RELEASE_FILE="web-ext-artifacts/arc-$VERSION.xpi"
 XPI="$(ls -t web-ext-artifacts/*"$VERSION"*.xpi 2>/dev/null | head -1 || true)"
 if [ -n "$XPI" ]; then
   cp -f "$XPI" "$RELEASE_FILE"
 else
   node scripts/amo.mjs fetch "$VERSION" "$RELEASE_FILE"
+fi
+
+# addons.mozilla.org hands back whatever was uploaded under this version, which
+# may be an older build from an attempt that failed later. Publishing that ships
+# stale code under a new number, so compare it against a fresh local build.
+npx web-ext build --overwrite-dest >/dev/null
+LOCAL_ZIP="$(ls -t web-ext-artifacts/*.zip | head -1)"
+DIFFERENT=""
+while IFS= read -r entry; do
+  a="$(unzip -p "$RELEASE_FILE" "$entry" 2>/dev/null | shasum -a 256 | cut -d' ' -f1)"
+  b="$(unzip -p "$LOCAL_ZIP" "$entry" 2>/dev/null | shasum -a 256 | cut -d' ' -f1)"
+  [ "$a" = "$b" ] || DIFFERENT="$DIFFERENT $entry"
+done < <(unzip -Z1 "$LOCAL_ZIP" | grep -v '/$')
+if [ -n "$DIFFERENT" ]; then
+  echo "The signed build for $VERSION isn't this code. It differs in:" >&2
+  for f in $DIFFERENT; do echo "  $f" >&2; done
+  echo "That version was uploaded before these changes, and its number can't be reused." >&2
+  echo "Bump to the next version and release that instead." >&2
+  exit 1
 fi
 
 TAG="v$VERSION"

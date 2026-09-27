@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Badge icons other extensions set (like Tab Driver's robot) sit between the
+  favicon or sound icon and the title, and look like the sound button instead
+  of taking the space's color. A pulsing icon shows a small blinking green dot
+  instead of blinking itself. (0.4.9 was meant to carry this and shipped an
+  older build by mistake.)
+
 ## 0.4.9
 
 - Badge icons other extensions set (like Tab Driver's robot) sit between the
