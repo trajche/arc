@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Dragging a tab above the list drops it at the top. The strip with the divider
+  and "New Tab · Clear" accepted nothing, so the line stayed on screen while the
+  drop was refused.
+
 ## 0.5.1
 
 - Tabs nobody has looked at for 45 minutes are unloaded, and load again when

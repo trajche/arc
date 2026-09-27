@@ -1053,6 +1053,20 @@ for (const zone of [els.today, els.newTab]) {
   zone.addEventListener("drop", onTodayDrop);
 }
 
+// The strip above the list (divider, "New Tab · Clear") is part of the list for
+// dropping: the mark sits on the first row, and a drop there moves the tab to
+// the top. Without this the mark stays on screen while the pointer is over a
+// strip that accepts nothing, and the drop is silently refused.
+document.querySelector(".divider-row")?.addEventListener("dragover", (e) => {
+  if (!accepts(e)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  clearDropMarks();
+  els.today.firstElementChild?.classList.add("drop-before");
+});
+document.querySelector(".divider-row")?.addEventListener("dragleave", onZoneLeave);
+document.querySelector(".divider-row")?.addEventListener("drop", onTodayDrop);
+
 async function onTodayDrop(e) {
   e.preventDefault();
   const mark = els.today.querySelector(".drop-before, .drop-after");
