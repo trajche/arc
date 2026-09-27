@@ -890,6 +890,24 @@ const ArcFox = (() => {
     }
   }
 
+  /**
+   * Drop the badges and menu items of extensions that are gone (disabled or removed): they can't
+   * clear their own. A message to a missing extension fails; one that's there just ignores it.
+   * `force` skips the 10 s throttle.
+   */
+  let lastProviderCheck = 0;
+  async function pruneProviders(force = false) {
+    if (!force && Date.now() - lastProviderCheck < 10000) return;
+    lastProviderCheck = Date.now();
+    const [{ [BADGES_KEY]: badges = {} }, { [TAB_MENU_KEY]: menus = {} }] = await Promise.all([
+      browser.storage.session.get(BADGES_KEY).catch(() => ({})),
+      browser.storage.session.get(TAB_MENU_KEY).catch(() => ({})),
+    ]);
+    const ids = new Set([...Object.keys(badges), ...Object.keys(menus)]);
+    await Promise.all([...ids].map((id) =>
+      browser.runtime.sendMessage(id, { type: "arcsidebar:ping" }).catch(() => Promise.all([setBadges(id, []), setTabMenu(id, [])]))));
+  }
+
   /** Badges and menu items live in session storage: ask the extensions that set them before to send them again. */
   async function announceToBadgeProviders() {
     const { [BADGE_PROVIDERS_KEY]: providers = [] } = await browser.storage.local.get(BADGE_PROVIDERS_KEY);
@@ -901,6 +919,7 @@ const ArcFox = (() => {
     getBadges,
     setTabMenu,
     tabMenuFor,
+    pruneProviders,
     announceToBadgeProviders,
     BADGES_KEY,
     FAV_KEY,

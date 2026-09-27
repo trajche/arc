@@ -112,7 +112,7 @@ async function refresh() {
         ArcFox.getIconCache(),
         browser.tabs.query({}).then((tabs) => tabs.filter((t) => !removedTabs.has(t.id))),
         browser.storage.local.get([HIDE_FAV_HINT, PINS_COLLAPSED]),
-        ArcFox.getBadges(),
+        ArcFox.pruneProviders().then(() => ArcFox.getBadges()),
       ]);
       state.badges = badges;
       state.hideFavHint = !!prefs[HIDE_FAV_HINT];

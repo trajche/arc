@@ -440,7 +440,9 @@ browser.menus.onShown.addListener(async (info, tab) => {
     });
     moveChildren.push(id);
   }
-  // Items other extensions added (e.g. Tab Driver's "Let AI agents control this tab").
+  // Items other extensions added (e.g. Tab Driver's "Let AI agents control this tab"),
+  // unless that extension has been disabled or removed since.
+  await ArcFox.pruneProviders(true);
   const extra = await ArcFox.tabMenuFor(tab.id);
   if (extra.length) {
     browser.menus.create({ id: EXT_PREFIX + "separator", type: "separator", contexts: ["tab"] });

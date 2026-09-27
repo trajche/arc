@@ -141,6 +141,8 @@ await browser.runtime.sendMessage("arc@sidebar", {
 - Each call replaces your items (up to 5). `tabIds` shows an item only on those tabs, `exceptTabIds`
   hides it on them.
 - Items last as long as badges, and the same `arcsidebar:ready` message asks you to send them again.
+- Arcsidebar pings extensions that set badges or items (`{ type: "arcsidebar:ping" }`, no answer
+  needed) and drops what they set once they're disabled or removed.
 
 ## Development
 
