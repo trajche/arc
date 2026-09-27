@@ -445,12 +445,36 @@ body.pins-collapsed #pinned { display: none; }
   color: var(--badge, var(--space));
   background: color-mix(in srgb, var(--badge, var(--space)) 16%, transparent);
 }
-/* Icon badges (Lucide), e.g. Tab Driver's robot at the start of an agent's tab. */
-.tab .badge.icon { display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border-radius: 6px; }
-.tab .badge.icon svg { width: 13px; height: 13px; }
-.tab .badge.pulse { animation: badge-pulse 1.4s ease-in-out infinite; }
-@keyframes badge-pulse { 50% { opacity: 0.35; } }
-@media (prefers-reduced-motion: reduce) { .tab .badge.pulse { animation: none; } }
+/* Icon badges (Lucide), e.g. Tab Driver's robot next to the sound icon: they look like the
+   sound button. Pulsing icons get a blinking green dot instead of blinking themselves. */
+.tab .badge.icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--badge, var(--fg));
+  background: var(--tile);
+}
+.tab .badge.icon svg { width: 14px; height: 14px; }
+.tab .audio:not([hidden]) + .badges.start { margin-inline-start: -8px; } /* sit next to the sound icon */
+.tab .badge.pulse:not(.icon) { animation: badge-pulse 1.4s ease-in-out infinite; }
+.tab .badge.icon.pulse::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34c759;
+  box-shadow: 0 0 0 1.5px var(--base);
+  animation: badge-pulse 1.2s ease-in-out infinite;
+}
+@keyframes badge-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .tab .badge.pulse, .tab .badge.icon.pulse::after { animation: none; } }
 
 /* ---------- Footer: spaces ---------- */
 

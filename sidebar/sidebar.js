@@ -207,9 +207,9 @@ const closeIcon = () => lucide(LUCIDE.x);
 
 /** favicon, mute, title, badges, close: the parts fillRow() updates. */
 const rowParts = () => [
-  h("span", { className: "badges start" }),
   h("span", { className: "favicon" }),
   h("button", { className: "icon-btn audio" }),
+  h("span", { className: "badges start" }),
   h("span", { className: "title" }),
   h("span", { className: "badges" }),
   h("button", { className: "icon-btn close", title: "Close tab" }, closeIcon()),
@@ -225,7 +225,7 @@ function makeSplitRow() {
 }
 
 function fillRow(el, tab, { title, url, icon }) {
-  const [startBadgesEl, favicon, audio, titleEl, badgesEl] = el.children;
+  const [favicon, audio, startBadgesEl, titleEl, badgesEl] = el.children;
   el.classList.toggle("active", !!tab?.active);
   el.classList.toggle("discarded", !!tab?.discarded);
   el.classList.toggle("loading", tab?.status === "loading" && !tab.discarded);
