@@ -108,8 +108,8 @@ browser.runtime.onMessageExternal.addListener((msg, sender) => {
  * discarded: the row keeps its title, favicon and history, and the page loads
  * again on click. */
 
-const IDLE_MINUTES = 15;
-const SWEEP_MINUTES = 5;
+const IDLE_MINUTES = 45; // long enough that a tab you come back to is still loaded
+const SWEEP_MINUTES = 10;
 
 async function discardIdleTabs() {
   const cutoff = Date.now() - IDLE_MINUTES * 60_000;
