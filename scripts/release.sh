@@ -21,7 +21,9 @@ ADDON_ID="arc@sidebar"
 # refuses that version number forever, so never upload it again: when this
 # version is already there, finish that release instead of bumping past it.
 VERSION="$(node -p "require('./manifest.json').version")"
-if node scripts/amo.mjs status "$VERSION" >/dev/null 2>&1; then
+if node scripts/amo.mjs status "$VERSION" >/dev/null 2>&1 &&
+   ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+  # Uploaded but never released: finish that one rather than burning its number.
   echo "Version $VERSION is already on addons.mozilla.org; finishing that release."
 else
   ./sign.sh "${1:-patch}" || echo "Signing didn't return a file; checking addons.mozilla.org."
@@ -30,7 +32,7 @@ fi
 RELEASE_FILE="web-ext-artifacts/arc-$VERSION.xpi"
 XPI="$(ls -t web-ext-artifacts/*"$VERSION"*.xpi 2>/dev/null | head -1 || true)"
 if [ -n "$XPI" ]; then
-  cp -f "$XPI" "$RELEASE_FILE"
+  [ "$XPI" = "$RELEASE_FILE" ] || cp -f "$XPI" "$RELEASE_FILE"
 else
   node scripts/amo.mjs fetch "$VERSION" "$RELEASE_FILE"
 fi
