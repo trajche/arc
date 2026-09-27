@@ -102,6 +102,36 @@ browser.runtime.onMessageExternal.addListener((msg, sender) => {
   if (msg?.type === "arcsidebar:set-badges") return ArcFox.setBadges(sender.id, msg.badges).then(() => ({ ok: true }));
   if (msg?.type === "arcsidebar:set-tab-menu") return ArcFox.setTabMenu(sender.id, msg.items).then(() => ({ ok: true }));
 });
+/* ---------- Freeing memory ----------
+ * A space's tabs stay loaded while the space is hidden, so a window's memory is
+ * every tab of every space at once. Tabs nobody has looked at for a while are
+ * discarded: the row keeps its title, favicon and history, and the page loads
+ * again on click. */
+
+const IDLE_MINUTES = 15;
+const SWEEP_MINUTES = 5;
+
+async function discardIdleTabs() {
+  const cutoff = Date.now() - IDLE_MINUTES * 60_000;
+  const tabs = await browser.tabs.query({}).catch(() => []);
+  const stale = tabs.filter(
+    (t) =>
+      !t.active && // never the tab being looked at
+      !t.discarded &&
+      !t.incognito && // a private tab's page is gone for good once unloaded
+      !t.audible && // playing something
+      t.status !== "loading" &&
+      (t.lastAccessed || 0) < cutoff &&
+      !(t.url || "").startsWith("moz-extension:") // Arc's own pages (command bar, editor)
+  );
+  for (const tab of stale) await browser.tabs.discard(tab.id).catch(() => {});
+}
+
+browser.alarms.create("arcsidebar:discard-idle", { periodInMinutes: SWEEP_MINUTES });
+browser.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "arcsidebar:discard-idle") discardIdleTabs();
+});
+
 browser.runtime.onStartup.addListener(() => ArcFox.announceToBadgeProviders());
 browser.runtime.onInstalled.addListener(() => ArcFox.announceToBadgeProviders());
 

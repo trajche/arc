@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1
+
+- Tabs nobody has looked at for 15 minutes are unloaded, and load again when
+  clicked. A space's tabs stay in memory while the space is hidden, so a window
+  was holding every tab of every space at once. Tabs playing audio, tabs in
+  private windows and the tab you're on are left alone.
+
 ## 0.5.0
 
 - Badge icons other extensions set (like Tab Driver's robot) sit between the

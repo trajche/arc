@@ -25,6 +25,7 @@
   "permissions": [
     "tabs",
     "tabHide",
+    "alarms",
     "storage",
     "sessions",
     "menus",
