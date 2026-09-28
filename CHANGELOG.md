@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - Arc no longer has its own hide/show shortcut. Hiding is Firefox's sidebar
   toggle now — the toolbar button, View → Sidebar, or its shortcut — and the
