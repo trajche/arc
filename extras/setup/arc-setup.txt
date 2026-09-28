@@ -214,9 +214,8 @@ IFS= read -r -d '' CSS <<'ARC_EOF' || true
   z-index: 11 !important;
 }
 
-/* No sidebar, no edge to drag (Option+Shift+S, or the panel closed): the strip
-   would otherwise sit over the page and swallow clicks. */
-#main-window[titlepreface*="\200B"] #sidebar-splitter,
+/* Panel closed: no edge to drag, and the strip would otherwise sit over the
+   page and swallow clicks. */
 #sidebar-box[hidden] + #sidebar-splitter {
   display: none !important;
 }
@@ -318,9 +317,8 @@ IFS= read -r -d '' CSS <<'ARC_EOF' || true
 
 /* ---------- Toolbar -> extensions row inside the sidebar ---------- */
 
-/* Sidebar hidden with Option+Shift+S (Arc sets an invisible window-title marker),
-   or closed: the page goes full width and the extensions row hides too. */
-#main-window[titlepreface*="\200B"] :is(#sidebar-box, #nav-bar),
+/* Sidebar closed (Firefox's own toggle): the page goes full width and the
+   extensions row goes with it. */
 #main-window:has(#sidebar-box[hidden]) #nav-bar {
   display: none !important;
 }

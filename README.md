@@ -46,7 +46,8 @@ With a small one-time setup it replaces Firefox's tab strip and toolbar, so the 
     <td width="50%" valign="top">
       <img src="docs/features/hide-sidebar.gif" alt="Hide the sidebar" width="100%"><br>
       <b>Hide the sidebar</b><br>
-      <code>⌥⇧S</code> / <code>Alt+Shift+S</code> gives the page the whole window. Press it again to bring your tabs back.
+      Firefox's own sidebar toggle gives the page the whole window — the sidebar button in the toolbar,
+      <i>View → Sidebar</i>, or its shortcut. Arc's extensions row hides with it.
     </td>
   </tr>
   <tr>

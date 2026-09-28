@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Arc no longer has its own hide/show shortcut. Hiding is Firefox's sidebar
+  toggle now — the toolbar button, View → Sidebar, or its shortcut — and the
+  extensions row hides with it. Arc's own hide mode was stored per window and
+  survived restarts, so a window could come back hidden with no visible way
+  out; that state is gone.
+
 - The setup turns on Firefox's Picture-in-Picture on tab switch, so a playing
   video pops out when you leave its tab and returns when you come back, the way
   Arc does. Firefox has this built in; some profiles ship with it off.

@@ -13,12 +13,7 @@ let moveChildren = [];
 const EXT_PREFIX = "arcfox-ext:"; // tab menu items other extensions added
 const extensionItems = new Map(); // menu id -> { extensionId, id, title } (null for the separator)
 
-/* ---------- Sidebar show/hide (Option+Shift+S) ----------
- * The sidebar stays open as far as Firefox knows; hiding is a window title
- * marker that extras/userChrome.css matches (#main-window[titlepreface]). */
-
-const HIDDEN_VALUE = "arcfoxHidden";
-const HIDDEN_MARK = "\u200B"; // zero-width space: invisible in the window title
+/* ---------- Window title markers ---------- */
 
 /* One invisible character per space color. Firefox's own sidebar panels
  * (history, bookmarks, synced tabs, the AI chat) are chrome, so they can't
@@ -35,10 +30,8 @@ const COLOR_MARKS = {
   purple: "\uFEFF",
 };
 
-/** Write both markers (hidden state, space color) into the window title. */
-async function applyWindowMarks(windowId, hiddenOverride) {
-  const hidden =
-    hiddenOverride ?? (await browser.sessions.getWindowValue(windowId, HIDDEN_VALUE).catch(() => false));
+/** Write the space-colour marker into the window title. */
+async function applyWindowMarks(windowId) {
   let mark = COLOR_MARKS.purple;
   const win = await browser.windows.get(windowId).catch(() => null);
   if (win && !win.incognito) {
@@ -47,11 +40,7 @@ async function applyWindowMarks(windowId, hiddenOverride) {
     const space = state.spaces.find((s) => s.id === spaceId);
     mark = COLOR_MARKS[space?.color] || COLOR_MARKS.purple;
   }
-  await browser.windows.update(windowId, { titlePreface: (hidden ? HIDDEN_MARK : "") + mark });
-}
-
-async function applySidebarHidden(windowId, hidden) {
-  await applyWindowMarks(windowId, hidden);
+  await browser.windows.update(windowId, { titlePreface: mark });
 }
 
 // The space (and so the tint) changes from the sidebar, which doesn't touch
@@ -64,12 +53,6 @@ function refreshWindowMarks() {
       await applyWindowMarks(win.id).catch(() => {});
     }
   }, 150);
-}
-
-async function toggleSidebar(windowId) {
-  const hidden = !(await browser.sessions.getWindowValue(windowId, HIDDEN_VALUE).catch(() => false));
-  await browser.sessions.setWindowValue(windowId, HIDDEN_VALUE, hidden);
-  await applySidebarHidden(windowId, hidden);
 }
 
 browser.runtime.onMessage.addListener((msg) => {
@@ -135,18 +118,9 @@ browser.alarms.onAlarm.addListener((alarm) => {
 browser.runtime.onStartup.addListener(() => ArcFox.announceToBadgeProviders());
 browser.runtime.onInstalled.addListener(() => ArcFox.announceToBadgeProviders());
 
-browser.runtime.onMessage.addListener((msg, sender) => {
-  if (msg?.type !== "arcfox:toggle-sidebar") return;
-  const windowId = msg.windowId ?? sender.tab?.windowId;
-  if (windowId !== undefined) toggleSidebar(windowId);
-});
-
-// Title markers don't survive restarts; re-apply the saved state.
-browser.windows.onCreated.addListener(async (win) => {
+// Title markers don't survive restarts; write this window's again.
+browser.windows.onCreated.addListener((win) => {
   applyWindowMarks(win.id).catch(() => {});
-  if (await browser.sessions.getWindowValue(win.id, HIDDEN_VALUE).catch(() => false)) {
-    applySidebarHidden(win.id, true);
-  }
 });
 
 /* ---------- Setup & migration ---------- */
@@ -182,9 +156,6 @@ async function initWindows() {
     for (const tab of win.tabs) {
       const blank = ArcFox.isNewTabUrl(tab.url) || tab.url === "about:blank";
       if (blank && !tab.url.startsWith(palette)) await handleNewTabPage(tab).catch(() => {});
-    }
-    if (await browser.sessions.getWindowValue(win.id, HIDDEN_VALUE).catch(() => false)) {
-      await applySidebarHidden(win.id, true);
     }
   }
 }
@@ -540,8 +511,6 @@ browser.commands.onCommand.addListener(async (command) => {
     // Sidebar may still be loading; it also checks for a pending focus on startup.
     await browser.storage.session.set({ focusAddress: windowId });
     browser.runtime.sendMessage({ type: "arcfox:focus-address", windowId }).catch(() => {});
-  } else if (command === "toggle-sidebar") {
-    await toggleSidebar(await focusedWindowId());
   } else if (command === "add-favorite") {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (tab) await ArcFox.addItem(await favKeyOfTab(tab, await ArcFox.getState()), tab);

@@ -132,12 +132,6 @@
         "mac": "MacCtrl+5"
       },
       "description": "Switch to space 5"
-    },
-    "toggle-sidebar": {
-      "suggested_key": {
-        "default": "Alt+Shift+S"
-      },
-      "description": "Show/hide the Arc sidebar"
     }
   },
   "chrome_url_overrides": {
