@@ -181,8 +181,6 @@ async function save(e) {
       const created = await browser.contextualIdentities.create({ name, color: draft.color, icon: "fingerprint" });
       container = created.cookieStoreId;
       ownContainer = true;
-    } else if (ownContainer && container) {
-      await browser.contextualIdentities.update(container, { name, color: draft.color });
     }
   } catch (err) {
     console.error("ArcFox: container update failed", err);

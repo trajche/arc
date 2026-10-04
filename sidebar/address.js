@@ -137,6 +137,8 @@ export function createAddressBar(ctx) {
     } else if (e.key === "Enter") {
       e.preventDefault();
       const text = input.value.trim();
+      // Cmd/Ctrl+Enter opens a new tab instead of taking over this one.
+      if (navigator.platform.startsWith("Mac") ? e.metaKey : e.ctrlKey) newTabMode = true;
       // Suggestions may lag behind fast typing; fall back to the raw text.
       if (items[selected] && itemsFor === text) run(items[selected]);
       else if (text) run({ run: () => go(resolve(text)) });

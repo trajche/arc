@@ -91,24 +91,40 @@ browser.runtime.onMessageExternal.addListener((msg, sender) => {
  * discarded: the row keeps its title, favicon and history, and the page loads
  * again on click. */
 
-const IDLE_MINUTES = 45; // long enough that a tab you come back to is still loaded
-const SWEEP_MINUTES = 10;
+const IDLE_MINUTES = 45; // a tab in the space you're in: long enough to come back to
+const HIDDEN_IDLE_MINUTES = 5; // a tab in another space: off screen, so unload it sooner
+const SWEEP_MINUTES = 5;
+
+/** Tabs that can be unloaded without taking something away from the user. */
+function unloadable(tab, now) {
+  if (tab.active || tab.discarded || tab.incognito || tab.audible) return false;
+  if (tab.status === "loading") return false;
+  if ((tab.url || "").startsWith("moz-extension:")) return false; // Arc's own pages
+  // A hidden tab belongs to a space that isn't on screen: nothing is lost by
+  // unloading it, and these are most of a window's memory.
+  const idle = tab.hidden ? HIDDEN_IDLE_MINUTES : IDLE_MINUTES;
+  return (tab.lastAccessed || 0) < now - idle * 60_000;
+}
 
 async function discardIdleTabs() {
-  const cutoff = Date.now() - IDLE_MINUTES * 60_000;
+  const now = Date.now();
   const tabs = await browser.tabs.query({}).catch(() => []);
-  const stale = tabs.filter(
-    (t) =>
-      !t.active && // never the tab being looked at
-      !t.discarded &&
-      !t.incognito && // a private tab's page is gone for good once unloaded
-      !t.audible && // playing something
-      t.status !== "loading" &&
-      (t.lastAccessed || 0) < cutoff &&
-      !(t.url || "").startsWith("moz-extension:") // Arc's own pages (command bar, editor)
-  );
-  for (const tab of stale) await browser.tabs.discard(tab.id).catch(() => {});
+  const stale = tabs.filter((t) => unloadable(t, now));
+  let done = 0;
+  for (const tab of stale) {
+    await browser.tabs
+      .discard(tab.id)
+      .then(() => done++)
+      .catch(() => {});
+  }
+  if (stale.length) console.log(`Arc: unloaded ${done}/${stale.length} idle tabs`);
 }
+
+// Leaving a space puts its tabs out of sight: sweep shortly after, so they go
+// without waiting for the next scheduled pass.
+browser.tabs.onUpdated.addListener((_id, changes) => {
+  if (changes.hidden === true) setTimeout(discardIdleTabs, HIDDEN_IDLE_MINUTES * 60_000 + 5_000);
+}, { properties: ["hidden"] });
 
 browser.alarms.create("arcsidebar:discard-idle", { periodInMinutes: SWEEP_MINUTES });
 browser.alarms.onAlarm.addListener((alarm) => {
@@ -117,6 +133,7 @@ browser.alarms.onAlarm.addListener((alarm) => {
 
 browser.runtime.onStartup.addListener(() => ArcFox.announceToBadgeProviders());
 browser.runtime.onInstalled.addListener(() => ArcFox.announceToBadgeProviders());
+browser.runtime.onInstalled.addListener(() => ArcFox.adoptArcContainers().catch(() => {}));
 
 // Title markers don't survive restarts; write this window's again.
 browser.windows.onCreated.addListener((win) => {

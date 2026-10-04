@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+- Tabs in a space you're not looking at unload after 5 minutes instead of 45.
+  They're off screen either way, and they were most of a window's memory.
+- Cmd/Ctrl+Enter in the sidebar's address bar opens a new tab instead of taking
+  over the one you're on.
+- A space's container takes the space's name and color, so Firefox's container
+  menus read the same as Arc's footer. Containers Arc made for imported spaces
+  are picked up on update; containers you made yourself are left alone.
+
 ## 0.6.0
 
 - Arc no longer has its own hide/show shortcut. Hiding is Firefox's sidebar

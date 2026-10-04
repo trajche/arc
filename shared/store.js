@@ -394,6 +394,21 @@ const ArcFox = (() => {
     notify();
   }
 
+  /**
+   * Give the space's container the space's name and color, so Firefox's "Open
+   * in container" menus and the tab stripe read the same as Arc's footer. Only
+   * containers Arc made (ownContainer) are touched: a container the user keeps
+   * for their own reasons isn't Arc's to rename.
+   */
+  async function syncContainer(space) {
+    if (!space?.container || !space.ownContainer) return;
+    const identity = await browser.contextualIdentities.get(space.container).catch(() => null);
+    if (!identity) return;
+    const color = COLORS[space.color] ? space.color : identity.color; // same palette as Firefox's
+    if (identity.name === space.name && identity.color === color) return;
+    await browser.contextualIdentities.update(space.container, { name: space.name, color }).catch(() => {});
+  }
+
   async function saveSpace(space) {
     const state = await getState();
     const spaces = state.spaces.slice();
@@ -403,8 +418,31 @@ const ArcFox = (() => {
     else spaces.push((saved = { ...space, id: uid() }));
     stateCache = null;
     await DATA.set({ [SPACES_KEY]: spaces });
+    await syncContainer(saved);
     notify();
     return saved;
+  }
+
+  /**
+   * Spaces imported before Arc tracked which containers are its own: a
+   * container Arc made carries the fingerprint icon, and is only reachable
+   * here because a space points at it.
+   */
+  async function adoptArcContainers() {
+    const state = await getState();
+    const spaces = state.spaces.slice();
+    let changed = false;
+    for (const [i, space] of spaces.entries()) {
+      if (!space.container || space.ownContainer !== undefined) continue;
+      const identity = await browser.contextualIdentities.get(space.container).catch(() => null);
+      spaces[i] = { ...space, ownContainer: identity?.icon === "fingerprint" };
+      changed = true;
+    }
+    if (!changed) return;
+    stateCache = null;
+    await DATA.set({ [SPACES_KEY]: spaces });
+    for (const space of spaces) await syncContainer(space);
+    notify();
   }
 
   async function moveSpace(spaceId, beforeSpaceId) {
@@ -949,6 +987,7 @@ const ArcFox = (() => {
     switchSpace,
     syncVisibility,
     saveSpace,
+    adoptArcContainers,
     moveSpace,
     spaceTabs,
     deleteSpace,
