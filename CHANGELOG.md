@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.2
+
+- Tab on a site in the command bar searches inside it instead of opening it:
+  the site becomes a chip and what you type next is searched there, with the
+  site's own engine when Firefox knows one. Backspace clears the chip.
+- The command bar and the sidebar's address bar keep to the space's container.
+  Firefox's history is one list for the whole profile and records no container,
+  so Arc notes where it saw each page; pages it never saw stay visible
+  everywhere.
+- Right-clicking a tab offers "Close N Tabs Above" and "Close N Tabs Below",
+  counted in the order the sidebar shows, within that space.
+- Cmd+T works while a tab is loading. The command bar Arc had just sent
+  somewhere still counted as the command bar, so the shortcut returned to it
+  instead of opening a new one.
+
 ## 0.6.1
 
 - Tabs in a space you're not looking at unload after 5 minutes instead of 45.

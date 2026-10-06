@@ -104,3 +104,22 @@ body.busy .list { opacity: 0.45; pointer-events: none; }
 body.busy .field-icon { opacity: 0.45; }
 body.busy #q { color: var(--muted); }
 .list, .field-icon { transition: opacity 120ms; }
+
+/* Tab on a site turns it into a chip: the next thing typed is searched there,
+   instead of the site opening. Backspace on an empty field removes it. */
+.scope {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--space) 22%, transparent);
+  color: var(--fg);
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.scope img { width: 14px; height: 14px; border-radius: 3px; }
+.scope[hidden] { display: none; }

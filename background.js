@@ -7,6 +7,8 @@ const MENU = {
   pin: "arcfox-pin",
   unpin: "arcfox-unpin",
   move: "arcfox-move",
+  closeAbove: "arcfox-close-above",
+  closeBelow: "arcfox-close-below",
 };
 const MOVE_PREFIX = "arcfox-move:";
 let moveChildren = [];
@@ -150,6 +152,8 @@ function createMenus() {
     browser.menus.create({ id: MENU.pin, title: "Pin in Space", contexts: ["tab"] });
     browser.menus.create({ id: MENU.unpin, title: "Unpin from Space", contexts: ["tab"], visible: false });
     browser.menus.create({ id: MENU.move, title: "Move to Space", contexts: ["tab"] });
+    browser.menus.create({ id: MENU.closeAbove, title: "Close Tabs Above", contexts: ["tab"], visible: false });
+    browser.menus.create({ id: MENU.closeBelow, title: "Close Tabs Below", contexts: ["tab"], visible: false });
   });
 }
 
@@ -321,20 +325,50 @@ function trackCommandBar(tab) {
 
 browser.tabs.onUpdated.addListener((tabId, changes, tab) => {
   if (changes.url !== undefined) trackCommandBar(tab);
+  // Note where the page was seen, so suggestions can stay inside a container.
+  if (changes.status === "complete" && !tab.incognito) {
+    ArcFox.recordVisit(tab.url, tab.cookieStoreId).catch(() => {});
+  }
 });
 browser.tabs.onRemoved.addListener((tabId, info) => {
   if (commandBars.get(info.windowId) === tabId) commandBars.delete(info.windowId);
 });
 
 /** A visible command-bar tab in `windowId`, if one is already open. */
+/**
+ * The tabs of `tab`'s space in sidebar order: what the list shows, so "above"
+ * and "below" mean what they look like. Pinned items and favorites keep their
+ * own rows and aren't part of it.
+ */
+async function listedTabs(tab) {
+  const state = await ArcFox.getState();
+  const spaceId = (await ArcFox.getTabSpace(tab.id)) || (await ArcFox.getWindowSpace(tab.windowId, state));
+  const tabs = (await browser.tabs.query({ windowId: tab.windowId })).filter((t) => !t.pinned);
+  const { tabItem, tabSpace } = await ArcFox.scanTabs(tabs, state);
+  return tabs
+    .filter((t) => !tabItem.has(t.id) && (tabSpace.get(t.id) ?? spaceId) === spaceId)
+    .sort((a, b) => a.index - b.index);
+}
+
+/** Tabs of the same space above or below `tab` in the list. */
+async function tabsAround(tab) {
+  const listed = await listedTabs(tab);
+  const at = listed.findIndex((t) => t.id === tab.id);
+  if (at < 0) return { above: [], below: [] };
+  return { above: listed.slice(0, at), below: listed.slice(at + 1) };
+}
+
 async function commandBarIn(windowId, ignoreTabId) {
+  const palette = browser.runtime.getURL("palette/palette.html");
   const known = commandBars.get(windowId);
   if (known !== undefined && known !== ignoreTabId) {
     const tab = await browser.tabs.get(known).catch(() => null);
-    if (tab && !tab.hidden) return tab;
+    // Still the command bar? Once it has been sent somewhere it is an ordinary
+    // tab, and Cmd+T has to open a new command bar rather than return to it.
+    if (tab && !tab.hidden && (tab.url || "").startsWith(palette)) return tab;
     commandBars.delete(windowId);
   }
-  const url = browser.runtime.getURL("palette/palette.html");
+  const url = palette;
   const tabs = await browser.tabs.query({ windowId });
   const open = tabs.find((t) => t.id !== ignoreTabId && !t.hidden && (t.url || "").startsWith(url)) || null;
   if (open) commandBars.set(windowId, open.id);
@@ -442,6 +476,12 @@ browser.menus.onShown.addListener(async (info, tab) => {
   browser.menus.update(MENU.unpin, { visible: isPin });
   browser.menus.update(MENU.move, { visible: !isFav && state.spaces.length > 1 });
 
+  // Count them so the menu says what it will close.
+  const { above, below } = await tabsAround(tab);
+  const plural = (n) => `${n} Tab${n === 1 ? "" : "s"}`;
+  browser.menus.update(MENU.closeAbove, { visible: above.length > 0, title: `Close ${plural(above.length)} Above` });
+  browser.menus.update(MENU.closeBelow, { visible: below.length > 0, title: `Close ${plural(below.length)} Below` });
+
   for (const id of moveChildren) browser.menus.remove(id);
   moveChildren = [];
   for (const id of extensionItems.keys()) browser.menus.remove(id);
@@ -479,6 +519,12 @@ browser.menus.onClicked.addListener(async (info, tab) => {
   const item = extensionItems.get(id);
   if (item) {
     browser.runtime.sendMessage(item.extensionId, { type: "arcsidebar:menu-clicked", id: item.id, tabId: tab.id }).catch(() => {});
+    return;
+  }
+  if (id === MENU.closeAbove || id === MENU.closeBelow) {
+    const { above, below } = await tabsAround(tab);
+    const doomed = (id === MENU.closeAbove ? above : below).map((t) => t.id);
+    if (doomed.length) await browser.tabs.remove(doomed);
     return;
   }
   if (id.startsWith(MOVE_PREFIX)) {

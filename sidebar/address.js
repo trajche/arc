@@ -48,7 +48,9 @@ export function createAddressBar(ctx) {
   });
 
   async function suggestions(text) {
-    return (await suggestFor(text)).map(withRun);
+    // Keep to this space's container: Firefox's history is profile-wide.
+    const container = ctx.container?.() || ctx.activeTab()?.cookieStoreId || null;
+    return (await suggestFor(text, { container })).map(withRun);
   }
 
   /** Before typing: current page first (like Arc), then frequent sites. */

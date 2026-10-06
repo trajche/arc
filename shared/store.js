@@ -29,6 +29,8 @@ const ArcFox = (() => {
   const BADGES_KEY = "tabBadges"; // storage.session: { [extensionId]: [{ tabId, label, title, color }] }
   const BADGE_PROVIDERS_KEY = "badgeProviders"; // storage.local: extensions that have set badges or menu items
   const TAB_MENU_KEY = "tabMenus"; // storage.session: { [extensionId]: [{ id, title, tabIds, exceptTabIds }] }
+  const VISITS_KEY = "visitsByContainer"; // storage.local: { [url]: { s: [cookieStoreId], t: lastVisit } }
+  const MAX_VISITS = 4000;
   const ITEM_VALUE = "arcfoxFav"; // name kept so bindings from 0.1.x survive
   const SPACE_VALUE = "arcfoxSpace";
   const LAST_VALUE = "arcfoxLast";
@@ -135,11 +137,13 @@ const ArcFox = (() => {
   // own writes.
   let stateCache = null;
   let iconCache = null;
+  let visitCache = null;
 
   browser.storage.onChanged?.addListener?.((changes, area) => {
     if (area !== "local") return;
     for (const key of Object.keys(changes)) {
       if (key === ICON_KEY) iconCache = null;
+      if (key === VISITS_KEY) visitCache = null;
       else if (key === SPACES_KEY || key.startsWith(FAV_KEY) || key.startsWith(PIN_PREFIX)) stateCache = null;
     }
   });
@@ -838,6 +842,49 @@ const ArcFox = (() => {
 
   /* ---------- Tab badges from other extensions ---------- */
 
+  /* ---------- Which container a page was seen in ----------
+   * Firefox's history has no container: a visit is a visit, whichever cookie
+   * jar it happened in (HistoryItem is {id, url, title, lastVisitTime,
+   * visitCount, typedCount}). Arc keeps its own note of where it saw a page so
+   * the command bar and address bar can suggest this space's pages. Pages Arc
+   * never saw — everything visited before this, or in another browser session —
+   * have no container and stay visible everywhere. */
+
+  async function getVisits() {
+    if (visitCache) return visitCache;
+    const { [VISITS_KEY]: visits = {} } = await browser.storage.local.get(VISITS_KEY);
+    visitCache = visits;
+    return visits;
+  }
+
+  /** Note that `url` was seen in `cookieStoreId`. */
+  async function recordVisit(url, cookieStoreId) {
+    if (!/^https?:\/\//i.test(url || "") || !cookieStoreId) return;
+    const visits = await getVisits();
+    const entry = visits[url] || { s: [], t: 0 };
+    if (!entry.s.includes(cookieStoreId)) entry.s = [...entry.s, cookieStoreId].slice(-4);
+    entry.t = Date.now();
+    visits[url] = entry;
+    const urls = Object.keys(visits);
+    if (urls.length > MAX_VISITS) {
+      // Drop the oldest; this is a hint for suggestions, not a history of record.
+      urls
+        .sort((a, b) => (visits[a].t || 0) - (visits[b].t || 0))
+        .slice(0, urls.length - MAX_VISITS)
+        .forEach((u) => delete visits[u]);
+    }
+    visitCache = visits;
+    await browser.storage.local.set({ [VISITS_KEY]: visits });
+  }
+
+  /** True when `url` belongs in `cookieStoreId`'s suggestions. */
+  async function seenInContainer(url, cookieStoreId) {
+    if (!cookieStoreId) return true;
+    const visits = await getVisits();
+    const entry = visits[url];
+    return !entry || entry.s.includes(cookieStoreId);
+  }
+
   const MAX_BADGES = 200; // per extension
   const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
   const BADGE_ICONS = ["bot", "sparkles"]; // drawn by the sidebar (Lucide); no outside SVG
@@ -980,6 +1027,8 @@ const ArcFox = (() => {
     getTabSpace,
     setTabSpace,
     scanTabs,
+    recordVisit,
+    seenInContainer,
     getWindowSpace,
     rememberActive,
     createTabInSpace,

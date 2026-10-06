@@ -9,6 +9,7 @@ let windowId = null;
 let ownTabId = null;
 
 const input = document.getElementById("q");
+const scopeEl = document.getElementById("scope");
 const list = document.getElementById("list");
 const hint = document.getElementById("hint");
 
@@ -25,6 +26,9 @@ let itemsFor = "";
 let selected = 0;
 let token = 0;
 let engine = "the web";
+let container = null; // this space's container, so suggestions stay inside it
+let scope = null; // { label, host, engine } — search inside one site
+let engines = [];
 let closing = false;
 
 // Extensions may not open Firefox's own pages (about:config, about:keyboard...).
@@ -43,6 +47,54 @@ function preconnect(url) {
   if (!/^https?:$/.test(new URL(origin).protocol) || warmed.has(origin)) return;
   warmed.add(origin);
   document.head.append(h("link", { rel: "preconnect", href: origin }));
+}
+
+/* ---------- Searching inside a site ----------
+ * Tab on something that looks like a site turns it into a chip instead of
+ * opening it: the next thing typed is searched there. A site Firefox knows as
+ * a search engine is searched with that engine; anything else falls back to
+ * the default engine, limited to that host. */
+
+/** The chip for `text`, or null when it isn't a site. */
+function scopeFor(text) {
+  const r = resolve(text);
+  if (!r?.url) return null;
+  let host;
+  try {
+    host = new URL(r.url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+  if (!host.includes(".")) return null;
+  const engine = engines.find((e) => {
+    const alias = (e.alias || "").toLowerCase();
+    if (alias && (alias === text.toLowerCase() || alias === "@" + host)) return true;
+    try {
+      return new URL(e.favIconUrl || "").hostname.replace(/^www\./, "").endsWith(host);
+    } catch {
+      return false;
+    }
+  });
+  return { label: engine?.name || host, host, engine: engine?.name || null };
+}
+
+function setScope(next) {
+  scope = next;
+  scopeEl.hidden = !next;
+  scopeEl.textContent = next ? next.label : "";
+  input.placeholder = next ? `Search ${next.label}…` : "Search or Enter URL…";
+  input.value = "";
+  update();
+}
+
+/** Run `text` against the chip's site. */
+async function runScoped(text) {
+  await ready;
+  if (scope.engine) {
+    await browser.search.search({ query: text, engine: scope.engine, tabId: ownTabId });
+  } else {
+    await runSearch(ownTabId, `site:${scope.host} ${text}`);
+  }
 }
 
 /** Navigate this tab to `target` ({url} or {search}). */
@@ -77,6 +129,10 @@ function pendingLabel(item) {
 }
 
 async function run(item) {
+  if (item?.target?.scoped) {
+    await runScoped(item.target.scoped).catch((err) => console.error("Arc: scoped search failed", err));
+    return;
+  }
   if (closing) return;
   closing = true;
   await ready; // ownTabId/windowId may still be resolving
@@ -148,7 +204,15 @@ function render() {
 async function update() {
   const text = input.value.trim();
   const mine = ++token;
-  const next = text ? await suggestFor(text, { max: 8 }) : await topSiteItems({ max: 6 });
+  if (scope) {
+    items = text ? [{ kind: "search", label: text, sub: `Search ${scope.label}`, target: { scoped: text } }] : [];
+    itemsFor = text;
+    selected = 0;
+    hint.textContent = text ? `Search ${scope.label}` : "";
+    render();
+    return;
+  }
+  const next = text ? await suggestFor(text, { max: 8, container }) : await topSiteItems({ max: 6 });
   if (mine !== token) return;
   items = next;
   itemsFor = text;
@@ -175,6 +239,16 @@ document.addEventListener("keydown", (e) => {
     selected = (selected + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
     render();
     list.children[selected]?.scrollIntoView({ block: "nearest" });
+  } else if (e.key === "Enter" && scope) {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    document.body.classList.add("busy");
+    hint.textContent = `Searching ${scope.label}…`;
+    browser.runtime
+      .sendMessage({ type: "arcsidebar:navigating", tabId: ownTabId, label: `Search ${scope.label}` })
+      .catch(() => {});
+    runScoped(text).catch((err) => console.error("Arc: scoped search failed", err));
   } else if (e.key === "Enter") {
     e.preventDefault();
     const text = input.value.trim();
@@ -182,9 +256,14 @@ document.addEventListener("keydown", (e) => {
     if (items[selected] && itemsFor === text) run(items[selected]);
     else if (text) run({ target: resolve(text) });
   } else if (e.key === "Tab" && input.value.trim()) {
-    // Arc: Tab searches with the default engine.
     e.preventDefault();
-    run({ target: { search: input.value.trim() } });
+    const next = scopeFor(input.value.trim());
+    // A site becomes a chip to search inside; anything else searches the web.
+    if (next) setScope(next);
+    else run({ target: { search: input.value.trim() } });
+  } else if (e.key === "Backspace" && scope && !input.value) {
+    e.preventDefault();
+    setScope(null);
   } else if (document.activeElement !== input && !e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
     // Typing anywhere goes back into the field, with the character kept.
     input.focus();
@@ -235,6 +314,7 @@ const ready = (async () => {
 
   // The engine name only fills in the "Search <engine>" hint.
   engine = await engineName();
+  engines = await browser.search.get().catch(() => []);
   if (!input.value.trim()) return;
   hint.textContent = `Search ${engine}`;
   render();

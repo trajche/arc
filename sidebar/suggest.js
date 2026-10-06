@@ -48,7 +48,7 @@ export async function switchToTab(tab, fromWindowId) {
  *   {kind: "go"|"search"|"tab"|"history", label, sub, url?, icon?, tab?, target?}
  * `tab` items switch to that tab; the others navigate to `target` ({url} or {search}).
  */
-export async function suggestFor(text, { max = 12 } = {}) {
+export async function suggestFor(text, { max = 12, container = null } = {}) {
   const out = [];
   const r = resolve(text);
   if (r?.url) out.push({ kind: "go", label: pretty(r.url) || r.url, sub: "Open", target: r });
@@ -58,6 +58,7 @@ export async function suggestFor(text, { max = 12 } = {}) {
   const seen = new Set();
   const tabs = (await browser.tabs.query({}))
     .filter((t) => !t.active && ((t.title || "").toLowerCase().includes(q) || (t.url || "").toLowerCase().includes(q)))
+    .filter((t) => !container || t.cookieStoreId === container)
     .slice(0, 4);
   for (const t of tabs) {
     seen.add(t.url);

@@ -510,6 +510,7 @@ const address = createAddressBar({
   windowId: () => state.windowId,
   activeTab,
   newTab: newTabInSpace,
+  container: () => space()?.container || null,
 });
 
 const spacesBar = createSpacesBar({
