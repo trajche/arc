@@ -185,7 +185,11 @@ async function initWindows() {
 async function closeInstallerTabs() {
   const tabs = await browser.tabs.query({ url: "about:blank" }).catch(() => []);
   const leftovers = tabs.filter((t) => /\.xpi$/i.test(t.title || ""));
-  if (leftovers.length) await browser.tabs.remove(leftovers.map((t) => t.id));
+  if (leftovers.length) {
+    const ids = leftovers.map((t) => t.id);
+    ArcFox.markClosing(ids);
+    await browser.tabs.remove(ids);
+  }
 }
 
 browser.runtime.onInstalled.addListener(({ reason }) => {
@@ -311,6 +315,127 @@ async function openBar(windowId) {
   return tab;
 }
 
+/* ---------- Where focus goes when a tab closes ---------- */
+
+/* Firefox picks the tab next to the one that closed. Arc goes back to the tab
+   you were on before it, which is what you usually want after following a link
+   out of a page you're still reading. */
+
+const MRU_MAX = 50;
+const MRU_KEY = "mru"; // storage.session: the event page can be suspended
+let mru = null; // windowId -> tab ids, most recently active first
+
+/** The order survives the background page being suspended between tabs. */
+async function mruAll() {
+  if (!mru) {
+    const stored = await browser.storage.session.get(MRU_KEY).catch(() => ({}));
+    mru = new Map(Object.entries(stored[MRU_KEY] || {}).map(([id, list]) => [Number(id), list]));
+  }
+  return mru;
+}
+
+function saveMru() {
+  const plain = {};
+  for (const [windowId, list] of mru) plain[windowId] = list;
+  return browser.storage.session.set({ [MRU_KEY]: plain }).catch(() => {});
+}
+
+async function noteActive(windowId, tabId) {
+  const all = await mruAll();
+  const list = (all.get(windowId) || []).filter((id) => id !== tabId);
+  list.unshift(tabId);
+  if (list.length > MRU_MAX) list.length = MRU_MAX;
+  all.set(windowId, list);
+  await saveMru();
+}
+
+async function dropFromMru(tabId, windowId) {
+  const all = await mruAll();
+  for (const [id, list] of all) {
+    if (windowId !== undefined && id !== windowId) continue;
+    const rest = list.filter((t) => t !== tabId);
+    if (rest.length) all.set(id, rest);
+    else all.delete(id);
+  }
+  await saveMru();
+}
+
+// When the active tab closes, Firefox activates its own pick before it reports
+// the removal: the tab Arc is told about is already off screen. What makes a
+// close tell itself apart from a plain tab switch is that the switch away from
+// the closing tab lands in the same breath as the removal.
+const switchedFrom = new Map(); // windowId -> { from: tab id, at }
+
+browser.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
+  const head = ((await mruAll()).get(windowId) || [])[0];
+  if (head !== undefined && head !== tabId) switchedFrom.set(windowId, { from: head, at: Date.now() });
+  await noteActive(windowId, tabId);
+});
+browser.tabs.onDetached.addListener((tabId, info) => dropFromMru(tabId, info.oldWindowId));
+browser.windows.onRemoved.addListener(async (windowId) => {
+  (await mruAll()).delete(windowId);
+  await saveMru();
+});
+
+/**
+ * The tab to go back to in `windowId`: the most recently active one that is
+ * still open and on screen. Hidden tabs belong to other spaces, so they never
+ * win — going back to one would switch space. `tabs` saves a query when the
+ * caller already has the window's list.
+ */
+async function previousTab(windowId, { tabs = null, order = null, closing = [] } = {}) {
+  const list = order || (await mruAll()).get(windowId) || [];
+  if (!list.length) return null;
+  const doomed = new Set([].concat(closing));
+  const open = tabs || (await browser.tabs.query({ windowId }).catch(() => []));
+  const alive = new Map(open.filter((t) => !t.hidden).map((t) => [t.id, t]));
+  for (const id of list) {
+    if (doomed.has(id)) continue;
+    const tab = alive.get(id);
+    if (tab) return tab;
+  }
+  return null;
+}
+
+/** Close these tabs, landing on the tab that was active before them. */
+async function closeTabsTo(tabIds, windowId) {
+  const ids = [].concat(tabIds);
+  const back = await previousTab(windowId, { closing: ids });
+  // The activation is sent first so Firefox never has to pick a tab itself:
+  // picking one shows the wrong page for a frame.
+  if (back && !back.active) browser.tabs.update(back.id, { active: true }).catch(() => {});
+  ArcFox.markClosing(ids);
+  await browser.tabs.remove(ids).catch(() => {});
+}
+
+// Closes Arc didn't make itself (a page closing its own tab, Firefox's menus):
+// Firefox has already moved on by now, so this corrects the choice.
+browser.tabs.onRemoved.addListener(async (tabId, info) => {
+  const at0 = Date.now();
+  const list = [...((await mruAll()).get(info.windowId) || [])];
+  await dropFromMru(tabId, info.windowId);
+  // Arc's own closes have already put you where they want you.
+  if (ArcFox.takeClosing(tabId) || info.isWindowClosing) return;
+  const switched = switchedFrom.get(info.windowId);
+  // Either the removal came first, or Firefox's own pick is already on screen
+  // and the tab it switched away from is the one that just closed.
+  const wasOnScreen =
+    list[0] === tabId || (switched && switched.from === tabId && at0 - switched.at < 200);
+  if (!wasOnScreen) return;
+  switchedFrom.delete(info.windowId);
+  const at = list.indexOf(tabId);
+  // Only tabs used before the closed one, from the order as it was: Firefox's
+  // own pick lands at the head of the live list a moment later.
+  const back = await previousTab(info.windowId, { order: list.slice(at + 1) });
+  if (!back) return;
+  // Firefox may still be choosing when the removal arrives first; let it, then
+  // correct the choice.
+  if (list[0] === tabId) await new Promise((r) => setTimeout(r, 120));
+  const [now] = await browser.tabs.query({ windowId: info.windowId, active: true }).catch(() => []);
+  if (!now || now.id === back.id) return;
+  await browser.tabs.update(back.id, { active: true }).catch(() => {});
+});
+
 /**
  * Cmd/Ctrl+W. Arc owns the shortcut so the last tab of a space can stay: an
  * empty space always keeps its command bar, and closing it would only make
@@ -334,7 +459,13 @@ async function closeActiveTab() {
     // Nothing else in this space: keep (or restore) the command bar instead.
     if (commandBars.get(windowId) === tab.id || ArcFox.isNewTabUrl(tab.url)) return;
     await openCommandBar(windowId);
+    ArcFox.markClosing(tab.id);
+    await browser.tabs.remove(tab.id);
+    return;
   }
+  const back = await previousTab(windowId, { tabs: win.tabs, closing: tab.id });
+  if (back) browser.tabs.update(back.id, { active: true }).catch(() => {});
+  ArcFox.markClosing(tab.id);
   await browser.tabs.remove(tab.id);
 }
 
@@ -343,6 +474,7 @@ async function reuseCommandBar(tab) {
   const open = await commandBarIn(tab.windowId, tab.id);
   if (!open) return false;
   handledNewTabs.add(tab.id);
+  ArcFox.markClosing(tab.id);
   await browser.tabs.remove(tab.id).catch(() => {});
   const back = await browser.tabs.get(open.id).catch(() => null);
   if (back && !back.active) await browser.tabs.update(open.id, { active: true }).catch(() => {});
@@ -458,6 +590,7 @@ async function handleNewTabPage(tab) {
   const open = await commandBarIn(tab.windowId, tab.id);
   if (open) {
     await browser.tabs.update(open.id, { active: true });
+    ArcFox.markClosing(tab.id);
     await browser.tabs.remove(tab.id);
     return;
   }
@@ -472,6 +605,7 @@ async function handleNewTabPage(tab) {
     });
     paletteTabs.add(bar.id);
     commandBars.set(tab.windowId, bar.id);
+    ArcFox.markClosing(tab.id);
     await browser.tabs.remove(tab.id);
     return;
   }
@@ -488,11 +622,14 @@ async function handleNewTabPage(tab) {
   });
   paletteTabs.add(bar.id);
   commandBars.set(tab.windowId, bar.id);
+  ArcFox.markClosing(tab.id);
   await browser.tabs.remove(tab.id);
 }
 
 browser.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type === "arcfox:newtab" && sender.tab) handleNewTabPage(sender.tab);
+  // The sidebar closing a tab: the background knows which tab to land on.
+  if (msg?.type === "arcfox:close-tab" && msg.tabIds) return closeTabsTo(msg.tabIds, msg.windowId);
   // The command bar is leaving: it stops counting as one now, not when the
   // page it opened finishes loading.
   if (msg?.type === "arcfox:navigating" && sender.tab) noteLeaving(sender.tab);
@@ -606,7 +743,10 @@ browser.menus.onClicked.addListener(async (info, tab) => {
   if (id === MENU.closeAbove || id === MENU.closeBelow) {
     const { above, below } = await tabsAround(tab);
     const doomed = (id === MENU.closeAbove ? above : below).map((t) => t.id);
-    if (doomed.length) await browser.tabs.remove(doomed);
+    if (doomed.length) {
+      ArcFox.markClosing(doomed);
+      await browser.tabs.remove(doomed);
+    }
     return;
   }
   if (id.startsWith(MOVE_PREFIX)) {

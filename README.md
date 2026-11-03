@@ -64,6 +64,8 @@ With a small one-time setup it replaces Firefox's tab strip and toolbar, so the 
   </tr>
 </table>
 
+**Closing a tab goes back.** The tab you were on before it comes up, not the one next to it — Firefox's own choice.
+
 **Downloads.** A tray at the bottom of the sidebar while files are coming in: progress bar, speed and time left, pause, resume and cancel. Finished downloads stay for a minute — click one to open it, or clear them from the header.
 
 **Import from Arc.** Brings over spaces, pinned tabs, folders and favorites. Each Arc profile becomes a Firefox container.

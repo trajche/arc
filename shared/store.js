@@ -534,9 +534,29 @@ const ArcFox = (() => {
     for (const win of await browser.windows.getAll({ windowTypes: ["normal"] })) {
       if ((await windowValue(win.id, SPACE_VALUE)) === spaceId) await switchSpace(win.id, rest[0].id);
     }
-    if (doomed.length) await browser.tabs.remove(doomed);
+    if (doomed.length) {
+      markClosing(doomed);
+      await browser.tabs.remove(doomed);
+    }
     notify();
     return true;
+  }
+
+  /* Tabs Arc closes itself. Closing the tab you're on normally sends you back
+     to the one before it (background.js), but a tab Arc swaps or tidies away
+     has already been replaced by the one Arc wants you on. */
+  const closing = new Set();
+
+  function markClosing(ids) {
+    for (const id of [].concat(ids)) {
+      closing.add(id);
+      setTimeout(() => closing.delete(id), 5000);
+    }
+  }
+
+  /** True once, for a tab Arc marked: the answer is consumed with the tab. */
+  function takeClosing(id) {
+    return closing.delete(id);
   }
 
   /** Move a tab to another space. Reopens it when the space uses a different container. */
@@ -563,6 +583,7 @@ const ArcFox = (() => {
         index: tab.index + 1,
       });
       moved = replacement.id;
+      markClosing(tabId);
       await browser.tabs.remove(tabId);
     } else {
       await setTabSpace(tabId, spaceId);
@@ -589,6 +610,7 @@ const ArcFox = (() => {
       isNewTabUrl(tab.url)
     ) {
       await createTabInSpace(tab.windowId, space, { active: tab.active, index: tab.index });
+      markClosing(tab.id);
       await browser.tabs.remove(tab.id);
       return;
     }
@@ -1050,6 +1072,8 @@ const ArcFox = (() => {
   }
 
   return {
+    markClosing,
+    takeClosing,
     setBadges,
     getBadges,
     setTabMenu,

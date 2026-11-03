@@ -551,7 +551,18 @@ $("reload").addEventListener("click", (e) => {
 async function closeTab(tabId) {
   const rest = state.tabs.filter((t) => t.id !== tabId && spaceOf(t) === state.spaceId);
   if (!rest.length) await newTabInSpace();
-  await browser.tabs.remove(tabId);
+  await removeTabs(tabId);
+}
+
+/**
+ * Close tabs. Closing the one you're on lands on the tab you were on before
+ * it, which only the background knows: it keeps the window's activation order.
+ */
+function removeTabs(tabIds) {
+  const ids = [].concat(tabIds);
+  if (ids.some((id) => tabById(id)?.active))
+    return browser.runtime.sendMessage({ type: "arcfox:close-tab", tabIds: ids, windowId: state.windowId });
+  return browser.tabs.remove(ids);
 }
 
 /* ---------- Selection (Shift/Cmd-click), like Arc ---------- */
@@ -624,7 +635,7 @@ function selectionMenu() {
         pendingRename = folder.id;
       },
     },
-    openTabs.length && { label: `Close ${plural(openTabs.length, "Tab")}`, run: () => browser.tabs.remove(openTabs).then(clearSelection) },
+    openTabs.length && { label: `Close ${plural(openTabs.length, "Tab")}`, run: () => removeTabs(openTabs).then(clearSelection) },
     itemIds.length && {
       label: itemIds.length === 1 ? "Remove Pin" : "Remove Pins",
       danger: true,
@@ -732,7 +743,7 @@ function itemMenu(itemId) {
       label: "Remove from Folder",
       run: () => ArcFox.moveItem(itemId, ArcFox.pinKey(state.spaceId), item.parent, { parent: null }),
     },
-    tab && { label: "Close Tab", run: () => browser.tabs.remove(tab.id) },
+    tab && { label: "Close Tab", run: () => closeTab(tab.id) },
     isFav
       ? { label: "Remove from Favorites", danger: true, run: () => ArcFox.removeItem(itemId, state.spaceId) }
       : { label: "Unpin", danger: true, run: () => ArcFox.removeItem(itemId, state.spaceId) },
@@ -890,7 +901,7 @@ els.clear.addEventListener("click", async () => {
   if (!ids.length) return;
   // Keep the space (and window) alive with a fresh tab.
   await newTabInSpace();
-  await browser.tabs.remove(ids);
+  await removeTabs(ids);
 });
 
 /* ---------- Drag and drop ---------- */
