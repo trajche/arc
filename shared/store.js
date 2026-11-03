@@ -305,6 +305,28 @@ const ArcFox = (() => {
     }
   }
 
+  async function clearTabSpace(tabId) {
+    try {
+      await browser.sessions.removeTabValue(tabId, SPACE_VALUE);
+      noteTabValue(tabId, SPACE_VALUE, null);
+    } catch {
+      // tab already gone
+    }
+  }
+
+  const favIdSet = (state) => new Set(state.favorites.map((f) => f.id));
+
+  /**
+   * How a tab's binding is keyed. A pinned item belongs to one space, so its
+   * id is enough; a favorite belongs to a container and shows in every space
+   * that uses it, so it owns a tab per space — otherwise the same page could
+   * only ever be open in one of them. A favorite tab from before this (or one
+   * Arc never tagged) keys on the empty space and is adopted on the next open.
+   */
+  function bindKey(itemId, spaceId, favIds) {
+    return favIds.has(itemId) ? `${itemId}@${spaceId || ""}` : itemId;
+  }
+
   /**
    * Read item bindings and spaces for the given tabs.
    * Duplicated tabs inherit session values: the oldest binding wins, the rest
@@ -312,28 +334,49 @@ const ArcFox = (() => {
    */
   async function scanTabs(tabs, state) {
     const known = allItemIds(state);
+    const favIds = favIdSet(state);
     const metas = await Promise.all(
       tabs.map(async (t) => [t, ...(await Promise.all([getTabItem(t.id), getTabSpace(t.id)]))])
     );
     metas.sort((a, b) => a[0].id - b[0].id);
-    const bound = new Map(); // itemId -> tab
+    const bound = new Map(); // bindKey() -> tab
     const tabItem = new Map(); // tabId -> itemId
     const tabSpace = new Map(); // tabId -> spaceId
     for (const [tab, itemId, spaceId] of metas) {
       if (spaceId) tabSpace.set(tab.id, spaceId);
       if (!itemId) continue;
-      if (!known.has(itemId) || bound.has(itemId)) {
+      const key = bindKey(itemId, spaceId, favIds);
+      if (!known.has(itemId) || bound.has(key)) {
         clearTabItem(tab.id);
         continue;
       }
-      bound.set(itemId, tab);
+      bound.set(key, tab);
       tabItem.set(tab.id, itemId);
     }
     return { bound, tabItem, tabSpace };
   }
 
-  async function findBoundTab(state, itemId) {
-    return (await scanTabs(await browser.tabs.query({}), state)).bound.get(itemId) || null;
+  /**
+   * The tab an item owns. `spaceId` is where the click came from: a favorite
+   * keeps one tab per space, and asking from a space means that space's tab or
+   * none — otherwise the click would take you to another space's tab, which is
+   * the thing favorites-per-space exists to avoid. Without a space, any of the
+   * item's tabs will do (it has at most one unless it is a favorite).
+   */
+  async function findBoundTab(state, itemId, spaceId = null) {
+    const { bound } = await scanTabs(await browser.tabs.query({}), state);
+    if (!favIdSet(state).has(itemId)) return bound.get(itemId) || null;
+    if (spaceId) return bound.get(`${itemId}@${spaceId}`) || bound.get(`${itemId}@`) || null;
+    for (const [key, tab] of bound) if (key.startsWith(`${itemId}@`)) return tab;
+    return null;
+  }
+
+  /** Every tab bound to `itemId`: one, or one per space for a favorite. */
+  async function findBoundTabs(state, itemId) {
+    const { bound } = await scanTabs(await browser.tabs.query({}), state);
+    const out = [];
+    for (const [key, tab] of bound) if (key === itemId || key.startsWith(`${itemId}@`)) out.push(tab);
+    return out;
   }
 
   /* ---------- Spaces & windows ---------- */
@@ -386,17 +429,14 @@ const ArcFox = (() => {
   /** Split a window's tabs into the ones visible in `spaceId` and the rest. */
   async function computeVisibility(windowId, state, spaceId) {
     const tabs = await browser.tabs.query({ windowId });
-    const { tabItem, tabSpace } = await scanTabs(tabs, state);
-    const favIds = new Set(state.favorites.map((f) => f.id));
+    const { tabSpace } = await scanTabs(tabs, state);
     const spaceIds = new Set(state.spaces.map((s) => s.id));
-    const mine = []; // tabs of the space (not favorites)
+    const mine = []; // tabs of the space
     const show = [];
     const hide = [];
+    // A favorite's tab belongs to the space it was opened in, like any other:
+    // the same favorite can have one in each space that shows it.
     for (const t of tabs) {
-      if (favIds.has(tabItem.get(t.id))) {
-        show.push(t.id);
-        continue;
-      }
       const s = tabSpace.get(t.id);
       if (!s || !spaceIds.has(s) || s === spaceId) {
         mine.push(t);
@@ -526,6 +566,14 @@ const ArcFox = (() => {
     const rest = state.spaces.filter((s) => s.id !== spaceId);
     if (!rest.length || rest.length === state.spaces.length) return false;
     const doomed = (await spaceTabs(spaceId)).map((t) => t.id);
+    // Favorite tabs of this space survive it (favorites belong to a container):
+    // let go of the space so the next open takes them into the one you are in.
+    const favIds = favIdSet(state);
+    const orphans = (await browser.tabs.query({})).filter((t) => !doomed.includes(t.id));
+    for (const t of orphans) {
+      if ((await getTabSpace(t.id)) !== spaceId) continue;
+      if (favIds.has(await getTabItem(t.id))) await clearTabSpace(t.id);
+    }
     stateCache = null;
     await DATA.set({ [SPACES_KEY]: rest });
     await writeList(pinKey(spaceId), []);
@@ -722,19 +770,30 @@ const ArcFox = (() => {
     const state = await getState();
     const found = findItem(state, itemId);
     if (!found || isFolder(found.item)) return null;
-    const tab = await findBoundTab(state, itemId);
+    // A favorite opens in the space you clicked it from; a pinned item in its own.
+    const fav = isFavKey(found.key);
+    const spaceId = fav ? await getWindowSpace(windowId, state) : found.spaceId;
+    const tab = await findBoundTab(state, itemId, spaceId);
     if (tab) {
+      // An older favorite tab carries no space: it joins the one it is opened from.
+      if (fav && spaceId && !(await getTabSpace(tab.id))) await setTabSpace(tab.id, spaceId);
       await browser.tabs.update(tab.id, { active: true });
       if (tab.windowId !== windowId) await browser.windows.update(tab.windowId, { focused: true });
       return tab;
     }
-    const space = found.spaceId && state.spaces.find((s) => s.id === found.spaceId);
-    const container = !space && found.key.startsWith(`${FAV_KEY}@`) ? found.key.slice(FAV_KEY.length + 1) : null;
-    const created = space
-      ? await createTabInSpace(windowId, space, { url: found.item.url })
-      : await browser.tabs
-          .create({ url: found.item.url, windowId, active: true, ...(container ? { cookieStoreId: container } : {}) })
-          .catch(() => browser.tabs.create({ url: found.item.url, windowId, active: true })); // container gone
+    const space = spaceId && state.spaces.find((s) => s.id === spaceId);
+    const container = found.key.startsWith(`${FAV_KEY}@`) ? found.key.slice(FAV_KEY.length + 1) : null;
+    // Favorites belong to a container: open in the space only when it is that one.
+    const inSpace = space && (!fav || (space.container || null) === container);
+    let created;
+    if (inSpace) {
+      created = await createTabInSpace(windowId, space, { url: found.item.url });
+    } else {
+      created = await browser.tabs
+        .create({ url: found.item.url, windowId, active: true, ...(container ? { cookieStoreId: container } : {}) })
+        .catch(() => browser.tabs.create({ url: found.item.url, windowId, active: true })); // container gone
+      if (spaceId) await setTabSpace(created.id, spaceId);
+    }
     await setTabItem(created.id, itemId);
     notify();
     return created;
@@ -788,43 +847,61 @@ const ArcFox = (() => {
       to.splice(to.indexOf(item) + 1, 0, ...children);
       await writeLists({ [found.key]: fromRest, [toKey]: to });
       const spaceId = spaceOfKey(toKey);
-      const tab = spaceId && (await findBoundTab(state, itemId));
-      if (tab) await setTabSpace(tab.id, spaceId);
+      if (spaceId) {
+        // A favorite can have a tab in several spaces; as a pinned item it has
+        // one. The tab already in the target space stays, the rest let go.
+        const tabs = await findBoundTabs(state, itemId);
+        const keep = (await firstInSpace(tabs, spaceId)) || tabs[0];
+        for (const tab of tabs) {
+          if (tab === keep) await setTabSpace(tab.id, spaceId);
+          else await clearTabItem(tab.id);
+        }
+      }
     }
     notify();
   }
 
-  /** Remove an item. Its tab (if open) stays open as a regular tab. */
+  /** Remove an item. Its tabs (if open) stay open as regular tabs. */
   async function removeItem(itemId, spaceIdForTab = null) {
     const state = await getState();
     const found = findItem(state, itemId);
     if (!found) return null;
-    const tab = await findBoundTab(state, itemId);
-    if (tab) {
+    // A favorite may have a tab in several spaces: each keeps the one it is in.
+    const tabs = await findBoundTabs(state, itemId);
+    for (const tab of tabs) {
       await clearTabItem(tab.id);
       const spaceId =
-        spaceIdForTab || found.spaceId || (await getTabSpace(tab.id)) || (await getWindowSpace(tab.windowId, state));
+        (await getTabSpace(tab.id)) ||
+        spaceIdForTab ||
+        found.spaceId ||
+        (await getWindowSpace(tab.windowId, state));
       await setTabSpace(tab.id, spaceId);
     }
     await writeList(found.key, found.list.filter((i) => i.id !== itemId));
     await dropIcon(itemId);
     notify();
-    return tab;
+    return tabs[0] || null;
+  }
+
+  /** The first of `tabs` that lives in `spaceId`. */
+  async function firstInSpace(tabs, spaceId) {
+    for (const tab of tabs) if ((await getTabSpace(tab.id)) === spaceId) return tab;
+    return null;
   }
 
   /** Navigate the item's tab back to its saved URL. */
-  async function resetItem(itemId) {
+  async function resetItem(itemId, spaceId = null) {
     const state = await getState();
     const found = findItem(state, itemId);
-    const tab = found && (await findBoundTab(state, itemId));
+    const tab = found && (await findBoundTab(state, itemId, spaceId));
     if (tab) await browser.tabs.update(tab.id, { url: found.item.url });
   }
 
   /** Save the item tab's current page as the item's URL. */
-  async function saveCurrentUrl(itemId) {
+  async function saveCurrentUrl(itemId, spaceId = null) {
     const state = await getState();
     const found = findItem(state, itemId);
-    const tab = found && (await findBoundTab(state, itemId));
+    const tab = found && (await findBoundTab(state, itemId, spaceId));
     if (!tab || !isFavoritable(tab.url)) return;
     const updated = {
       ...found.item,
@@ -1072,6 +1149,7 @@ const ArcFox = (() => {
   }
 
   return {
+    bindKey,
     markClosing,
     takeClosing,
     setBadges,

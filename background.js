@@ -646,8 +646,8 @@ browser.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
   const tab = await browser.tabs.get(tabId).catch(() => null);
   if (!tab || tab.incognito) return; // private windows keep no spaces
   const state = await ArcFox.getState();
-  const itemId = await ArcFox.getTabItem(tabId);
-  if (itemId && state.favorites.some((f) => f.id === itemId)) return;
+  // Favorites used to sit outside the spaces; now a favorite's tab belongs to
+  // the space it was opened in and follows it like any other.
   const spaceId = await ArcFox.getTabSpace(tabId);
   if (!state.spaces.some((s) => s.id === spaceId)) return;
   await ArcFox.rememberActive(windowId, spaceId, tabId);

@@ -30,7 +30,7 @@ const state = {
   pins: [], // pinned items of the current space
   icons: {},
   hideFavHint: false,
-  bound: new Map(), // itemId -> tab
+  bound: new Map(), // ArcFox.bindKey() -> tab (favorites bind per space)
   tabItem: new Map(), // tabId -> itemId
   tabSpace: new Map(), // tabId -> spaceId
   badges: new Map(), // tabId -> badges other extensions put on it
@@ -45,6 +45,17 @@ const tabEls = new Map();
 let dragging = false;
 
 const space = () => state.spaces.find((s) => s.id === state.spaceId);
+
+/**
+ * The tab an item owns here. A pinned item has one; a favorite has one per
+ * space, so it is looked up under this space (and under none, for a tab from
+ * before favorites were tied to a space).
+ */
+const boundTab = (itemId) =>
+  state.bound.get(itemId) ||
+  state.bound.get(`${itemId}@${state.spaceId}`) ||
+  state.bound.get(`${itemId}@`) ||
+  null;
 const activeTab = () => state.tabs.find((t) => t.active) || null;
 const tabById = (id) => state.tabs.find((t) => t.id === id);
 
@@ -138,11 +149,12 @@ async function refresh() {
       state.icons = icons;
 
       const itemIds = new Set([...st.favorites, ...[...st.pins.values()].flat()].map((i) => i.id));
+      const favIds = new Set(st.favorites.map((f) => f.id));
       const byId = new Map(allTabs.map((t) => [t.id, t]));
       state.bound = new Map();
       for (const [tabId, itemId] of state.tabItem) {
         const tab = byId.get(tabId);
-        if (tab && itemIds.has(itemId)) state.bound.set(itemId, tab);
+        if (tab && itemIds.has(itemId)) state.bound.set(ArcFox.bindKey(itemId, state.tabSpace.get(tabId), favIds), tab);
         else state.tabItem.delete(tabId);
       }
       for (const tabId of state.tabSpace.keys()) if (!byId.has(tabId)) state.tabSpace.delete(tabId);
@@ -203,7 +215,7 @@ function renderFavorites() {
       el = h("button", { className: "tile", draggable: true, dataset: { item: fav.id } }, h("span", { className: "icon" }));
       tileEls.set(fav.id, el);
     }
-    const tab = state.bound.get(fav.id);
+    const tab = boundTab(fav.id);
     el.classList.toggle("open", !!tab);
     el.classList.toggle("active", !!tab && tab.id === activeId);
     el.title = tab?.title || fav.title;
@@ -317,7 +329,7 @@ function pinRow(item, parent) {
   el.dataset.sel = `i:${item.id}`;
   el.dataset.parent = parent || "";
   el.classList.toggle("child", !!parent);
-  const tab = state.bound.get(item.id);
+  const tab = boundTab(item.id);
   el.classList.toggle("open", !!tab);
   // Arc shows the saved title for pinned items; fall back to the live tab title.
   fillRow(el, tab, {
@@ -621,8 +633,8 @@ function selectionMenu() {
   const keys = [...selection];
   const itemIds = keys.filter((k) => k.startsWith("i:")).map((k) => k.slice(2)).filter((id) => pinById(id) && !ArcFox.isFolder(pinById(id)));
   const tabIds = keys.filter((k) => k.startsWith("t:")).map((k) => Number(k.slice(2))).filter((id) => tabById(id));
-  const links = [...itemIds.map((id) => state.bound.get(id)?.url || pinById(id)?.url), ...tabIds.map((id) => tabById(id).url)].filter(Boolean);
-  const openTabs = [...itemIds.map((id) => state.bound.get(id)?.id).filter(Boolean), ...tabIds];
+  const links = [...itemIds.map((id) => boundTab(id)?.url || pinById(id)?.url), ...tabIds.map((id) => tabById(id).url)].filter(Boolean);
+  const openTabs = [...itemIds.map((id) => boundTab(id)?.id).filter(Boolean), ...tabIds];
   const n = itemIds.length + tabIds.length;
   return [
     links.length && { label: "Copy Links", run: () => navigator.clipboard.writeText(links.join("\n")) },
@@ -720,13 +732,13 @@ function itemMenu(itemId) {
   if (!found) return [];
   const { item } = found;
   const isFav = ArcFox.isFavKey(found.key);
-  const tab = state.bound.get(itemId);
+  const tab = boundTab(itemId);
   const moved = tab && tab.url !== item.url;
   return [
     { label: tab ? "Go to Tab" : "Open", run: () => ArcFox.openItem(itemId, state.windowId) },
     { label: "Open in New Tab", run: () => newTabInSpace(item.url) },
-    moved && { label: "Back to Saved URL", run: () => ArcFox.resetItem(itemId) },
-    moved && ArcFox.isFavoritable(tab.url) && { label: "Save Current URL", run: () => ArcFox.saveCurrentUrl(itemId) },
+    moved && { label: "Back to Saved URL", run: () => ArcFox.resetItem(itemId, state.spaceId) },
+    moved && ArcFox.isFavoritable(tab.url) && { label: "Save Current URL", run: () => ArcFox.saveCurrentUrl(itemId, state.spaceId) },
     { label: "Copy Link", run: () => navigator.clipboard.writeText(item.url) },
     "-",
     isFav
@@ -830,7 +842,7 @@ els.pinned.addEventListener("click", (e) => {
     toggleFolder(folder);
     return;
   }
-  const tab = state.bound.get(row.dataset.item);
+  const tab = boundTab(row.dataset.item);
   if (e.target.closest(".close")) {
     if (tab) closeTab(tab.id);
   } else if (e.target.closest(".audio")) {
@@ -850,7 +862,7 @@ els.pinned.addEventListener("dblclick", (e) => {
 
 els.pinned.addEventListener("auxclick", (e) => {
   const row = e.target.closest(".tab");
-  const tab = row && state.bound.get(row.dataset.item);
+  const tab = row && boundTab(row.dataset.item);
   if (tab && e.button === 1) closeTab(tab.id);
 });
 
@@ -929,7 +941,7 @@ document.addEventListener("dragstart", (e) => {
   dragKind = itemEl ? (itemEl.classList.contains("folder") ? "folder" : "item") : "tab";
   const row = e.target.closest?.("[data-tab]");
   if (itemEl) {
-    const tab = state.bound.get(itemEl.dataset.item);
+    const tab = boundTab(itemEl.dataset.item);
     const found = ArcFox.findItem(localState(), itemEl.dataset.item);
     e.dataTransfer.setData(ITEM_MIME, itemEl.dataset.item);
     if (found) e.dataTransfer.setData("text/uri-list", tab?.url || found.item.url);
