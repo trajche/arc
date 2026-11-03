@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.0
+
+- Downloads show in the sidebar. A tray appears under the tab list while files
+  are coming in: a row each with a progress bar, transfer rate and time left,
+  and pause, resume, cancel and retry. A download with no size reported gets a
+  sliding bar instead of a made-up percentage. Finished downloads stay for a
+  minute — click one to open it, reveal it in its folder, or clear them from
+  the tray's header — then drop out on their own.
+- Closing a tab goes back to the tab you were on before it, instead of the one
+  next to it. Tabs of other spaces never win, since going back to one would
+  switch space. Arc's own closes — Cmd/Ctrl+W, the sidebar's close button, its
+  tab menu, closing a selection, Clear — send you there before the tab goes,
+  so nothing flashes in between; closes from elsewhere are corrected right
+  after.
+
 ## 0.6.7
 
 - Clicking a favorite or a pinned item works when the space has no tabs of its
