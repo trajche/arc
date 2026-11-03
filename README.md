@@ -64,6 +64,8 @@ With a small one-time setup it replaces Firefox's tab strip and toolbar, so the 
   </tr>
 </table>
 
+**Downloads.** A tray at the bottom of the sidebar while files are coming in: progress bar, speed and time left, pause, resume and cancel. Finished downloads stay for a minute — click one to open it, or clear them from the header.
+
 **Import from Arc.** Brings over spaces, pinned tabs, folders and favorites. Each Arc profile becomes a Firefox container.
 
 Shortcuts can be changed in `about:addons` → ⚙ → *Manage Extension Shortcuts*.

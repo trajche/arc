@@ -53,3 +53,20 @@ export function syncChildren(parent, nodes) {
   const same = parent.children.length === nodes.length && nodes.every((n, i) => parent.children[i] === n);
   if (!same) parent.replaceChildren(...nodes);
 }
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** Lucide icon from its path data: 24-grid, 2px round strokes. https://lucide.dev (ISC) */
+export function lucide(d) {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "currentColor");
+  path.setAttribute("stroke-width", "2");
+  path.setAttribute("stroke-linecap", "round");
+  path.setAttribute("stroke-linejoin", "round");
+  svg.append(path);
+  return svg;
+}

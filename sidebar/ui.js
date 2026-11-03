@@ -1,7 +1,7 @@
 /* Sidebar UI helpers: context menu and in-sidebar dialogs. */
 import { h } from "./dom.js";
 
-export { h, letterFor, setIcon, syncChildren } from "./dom.js";
+export { h, letterFor, lucide, setIcon, syncChildren } from "./dom.js";
 
 /* ---------- Context menu ---------- */
 

@@ -24,6 +24,7 @@
   },
   "permissions": [
     "tabs",
+    "downloads",
     "tabHide",
     "alarms",
     "storage",
@@ -36,6 +37,9 @@
     "history",
     "search",
     "topSites"
+  ],
+  "optional_permissions": [
+    "downloads.open"
   ],
   "background": {
     "scripts": [

@@ -1,7 +1,8 @@
 /* global ArcFox */
-import { h, setIcon, syncChildren, showMenu, hideMenu } from "./ui.js";
+import { h, lucide, setIcon, syncChildren, showMenu, hideMenu } from "./ui.js";
 import { createAddressBar } from "./address.js";
 import { createSpacesBar } from "./spaces.js";
+import { createDownloads } from "./downloads.js";
 
 const TAB_MIME = "application/x-arcfox-tab";
 const ITEM_MIME = "application/x-arcfox-item";
@@ -289,20 +290,6 @@ const LUCIDE = {
     "M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594zM20 2v4M22 4h-4M2 20a2 2 0 1 0 4 0a2 2 0 1 0-4 0",
 };
 
-function lucide(d) {
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  const path = document.createElementNS(SVG_NS, "path");
-  path.setAttribute("d", d);
-  path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "currentColor");
-  path.setAttribute("stroke-width", "2");
-  path.setAttribute("stroke-linecap", "round");
-  path.setAttribute("stroke-linejoin", "round");
-  svg.append(path);
-  return svg;
-}
-
 function svgIcon(d) {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
@@ -527,6 +514,11 @@ const address = createAddressBar({
   activeTab,
   newTab: newTabInSpace,
   container: () => space()?.container || null,
+});
+
+const downloads = createDownloads({
+  el: $("downloads"),
+  isPrivate: () => state.private,
 });
 
 const spacesBar = createSpacesBar({
@@ -1256,6 +1248,7 @@ function keepBackgroundAwake() {
   // Private windows show tabs only — no favorites, pins, folders or spaces.
   state.private = win.incognito;
   document.body.classList.toggle("private", state.private);
+  downloads.start();
   await refresh();
   const { focusAddress } = await browser.storage.session.get("focusAddress");
   if (focusAddress === state.windowId) {

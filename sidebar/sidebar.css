@@ -476,6 +476,91 @@ body.pins-collapsed #pinned { display: none; }
 @keyframes badge-pulse { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .tab .badge.pulse, .tab .badge.icon.pulse::after { animation: none; } }
 
+/* ---------- Downloads tray ---------- */
+
+.downloads {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -8px;
+  padding: 4px 8px 6px;
+  border-top: 1px solid var(--divider);
+  max-height: 34vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.downloads[hidden] { display: none; }
+.downloads:hover { scrollbar-color: var(--divider) transparent; }
+
+.dl-head { display: flex; align-items: center; gap: 6px; padding: 2px 6px; }
+.dl-head-title { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
+.dl-head-count { flex: 1; font-size: 11px; color: var(--muted); }
+/* The Clear link follows the sidebar's other links: visible on hover. */
+.downloads:hover .link-btn { opacity: 1; max-width: 6rem; margin-inline-start: 6px; }
+.dl-head .link-btn[hidden] { display: none; }
+
+.dl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.dl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 4px 0 6px;
+  border-radius: 8px;
+  cursor: default;
+}
+.dl:hover { background: var(--row-hover); }
+
+.dl-icon {
+  flex: none;
+  width: 18px; height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.dl-icon svg { width: 15px; height: 15px; }
+.dl.active .dl-icon { color: var(--space); }
+.dl.done .dl-icon { color: #30a46c; }
+.dl.failed .dl-icon { color: #e5484d; }
+
+.dl-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dl-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-sub { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.dl-bar {
+  height: 3px;
+  margin-top: 1px;
+  border-radius: 2px;
+  background: var(--field);
+  overflow: hidden;
+}
+.dl-bar[hidden] { display: none; }
+.dl-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: var(--space);
+  transition: width 200ms linear;
+}
+/* No Content-Length: slide a short bar instead of pretending to know the size. */
+.dl-bar.unknown .dl-fill { width: 35%; animation: dl-slide 1.1s ease-in-out infinite; }
+@keyframes dl-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(285%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dl-bar.unknown .dl-fill { animation: none; width: 100%; opacity: 0.4; }
+  .dl-fill { transition: none; }
+}
+
+.dl-act, .dl-x { visibility: hidden; width: 22px; height: 22px; }
+.dl:hover .dl-act, .dl:hover .dl-x, .dl-act:focus-visible, .dl-x:focus-visible { visibility: visible; }
+.dl-act svg, .dl-x svg { width: 13px; height: 13px; }
+
 /* ---------- Footer: spaces ---------- */
 
 .spaces {
