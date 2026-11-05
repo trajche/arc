@@ -626,10 +626,28 @@ async function handleNewTabPage(tab) {
   await browser.tabs.remove(tab.id);
 }
 
+/**
+ * "Switch to Tab", from the command bar or the sidebar's address bar: follow
+ * the tab into its space, then close the bar that asked (its own tab), which
+ * Arc marks as its own close so the corrector above leaves the switch alone.
+ */
+async function focusTabAndClose({ tabId, windowId, closeTabId }) {
+  await ArcFox.focusTab(tabId, windowId);
+  if (closeTabId === null || closeTabId === undefined) return;
+  // The bar stays if it is all the window has: closing it would only make
+  // Firefox open a blank tab in its place.
+  const left = await browser.tabs.query({ windowId }).catch(() => []);
+  if (left.length <= 1) return;
+  ArcFox.markClosing(closeTabId);
+  await browser.tabs.remove(closeTabId).catch(() => {});
+}
+
 browser.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type === "arcfox:newtab" && sender.tab) handleNewTabPage(sender.tab);
   // The sidebar closing a tab: the background knows which tab to land on.
   if (msg?.type === "arcfox:close-tab" && msg.tabIds) return closeTabsTo(msg.tabIds, msg.windowId);
+  // Switching to a tab: it may live in another space, or another window.
+  if (msg?.type === "arcfox:focus-tab" && msg.tabId !== undefined) return focusTabAndClose(msg);
   // The command bar is leaving: it stops counting as one now, not when the
   // page it opened finishes loading.
   if (msg?.type === "arcfox:navigating" && sender.tab) noteLeaving(sender.tab);

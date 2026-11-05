@@ -148,9 +148,9 @@ async function run(item) {
       hint.classList.remove("warn");
     }
     if (item.tab) {
-      // Switching to an existing tab makes this blank one pointless.
-      await switchToTab(item.tab, windowId);
-      await cancel();
+      // Switching to an existing tab makes this blank one pointless: the
+      // background drops it once it has put us on the other tab.
+      await switchToTab(item.tab, windowId, ownTabId);
     } else {
       await open(item.target);
     }

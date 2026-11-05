@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- A favorite can own a tab in each space. Favorites are shared by every space
+  of the same container, but a favorite had one tab for all of them, so opening
+  it from a second space jumped to the first space's tab. Its tab now belongs
+  to the space it was opened in, hides with that space, and reads as open only
+  where it has one. Tabs from before the change are adopted by the space you
+  next open them from.
+- "Switch to Tab" takes you to the tab's space. Picking a tab of another space
+  in the command bar or the sidebar's address bar activated it without moving
+  the window, which left the tab hidden and sent you back where you were.
+  Switching to a tab of another window brings its space along too.
+
 ## 0.7.0
 
 - Downloads show in the sidebar. A tray appears under the tab list while files

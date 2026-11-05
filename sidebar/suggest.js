@@ -38,9 +38,26 @@ export async function runSearch(tabId, text) {
   else await browser.search.search({ query: text, tabId });
 }
 
-export async function switchToTab(tab, fromWindowId) {
-  await browser.tabs.update(tab.id, { active: true });
-  if (tab.windowId !== fromWindowId) await browser.windows.update(tab.windowId, { focused: true });
+/**
+ * Go to `tab`. The background does it: a tab of another space has to bring its
+ * space along, and only the background knows that a close is Arc's own, so
+ * `closeTabId` (the command bar's own tab) goes with it instead of being
+ * removed from here, where the close would be mistaken for the user's and send
+ * focus back to the tab before it.
+ */
+export async function switchToTab(tab, fromWindowId, closeTabId = null) {
+  try {
+    await browser.runtime.sendMessage({
+      type: "arcfox:focus-tab",
+      tabId: tab.id,
+      windowId: fromWindowId,
+      closeTabId,
+    });
+  } catch {
+    // No background to ask (it should always be there): at least switch.
+    await browser.tabs.update(tab.id, { active: true });
+    if (tab.windowId !== fromWindowId) await browser.windows.update(tab.windowId, { focused: true });
+  }
 }
 
 /**

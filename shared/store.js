@@ -474,9 +474,7 @@ const ArcFox = (() => {
     const [active] = await browser.tabs.query({ windowId, active: true });
     if (active) {
       const s = await getTabSpace(active.id);
-      const itemId = await getTabItem(active.id);
-      const isFav = state.favorites.some((f) => f.id === itemId);
-      if (s && s !== spaceId && !isFav && state.spaces.some((x) => x.id === s)) {
+      if (s && s !== spaceId && state.spaces.some((x) => x.id === s)) {
         spaceId = s;
         await browser.sessions.setWindowValue(windowId, SPACE_VALUE, spaceId);
       }
@@ -486,6 +484,30 @@ const ArcFox = (() => {
     const toHide = hide.filter((id) => id !== active?.id);
     if (toHide.length) await browser.tabs.hide(toHide).catch(() => {});
     notify();
+  }
+
+  /**
+   * Look at `tabId`, wherever it lives: a tab of another space brings its space
+   * along (Arc's "switch to tab" crosses spaces), a tab of another window
+   * brings that window forward.
+   */
+  async function focusTab(tabId, fromWindowId = null) {
+    const tab = await browser.tabs.get(tabId).catch(() => null);
+    if (!tab) return;
+    const state = await getState();
+    const spaceId = await getTabSpace(tabId);
+    if (
+      state.spaces.some((s) => s.id === spaceId) &&
+      spaceId !== (await getWindowSpace(tab.windowId, state))
+    ) {
+      // The switch lands on the space's last tab, so say which that is now.
+      await rememberActive(tab.windowId, spaceId, tabId);
+      await switchSpace(tab.windowId, spaceId);
+    }
+    await browser.tabs.update(tabId, { active: true }).catch(() => {});
+    if (tab.windowId !== fromWindowId) {
+      await browser.windows.update(tab.windowId, { focused: true }).catch(() => {});
+    }
   }
 
   /**
@@ -1187,6 +1209,7 @@ const ArcFox = (() => {
     topIndexOfSpace,
     switchSpace,
     syncVisibility,
+    focusTab,
     saveSpace,
     adoptArcContainers,
     moveSpace,
