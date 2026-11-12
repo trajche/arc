@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1
 
 - Undo, with Cmd/Ctrl+Z in the sidebar (and Cmd/Ctrl+Shift+Z to do it again).
   It takes back a tab dropped in the favorites or the pins, an unpin or a
