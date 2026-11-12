@@ -799,3 +799,42 @@ body.private .scroll { padding-bottom: 12px; }
 /* Until the first render lands, the sidebar has no tabs, no space and no
    favorites: show nothing rather than an empty "+ New Tab" and a blank header. */
 body.booting .scroll, body.booting .spaces { visibility: hidden; }
+
+/* Undo toast: what just happened, and the way back. Dropping a tab in the
+   pins or closing the wrong one is easy to do by accident and easy to miss,
+   so the sidebar says so and keeps Cmd/Ctrl+Z within reach. */
+.toast {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -8px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--divider);
+  font-size: 12px;
+  color: var(--fg);
+  animation: toast-in 140ms ease-out;
+}
+.toast[hidden] { display: none; }
+.toast-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-act {
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: var(--field);
+  color: var(--fg);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.toast-act:hover { background: var(--field-focus); }
+.toast-key { color: var(--muted); font-weight: 400; margin-inline-start: 4px; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

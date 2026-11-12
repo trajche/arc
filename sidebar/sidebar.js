@@ -18,6 +18,7 @@ const els = {
   newTab: $("new-tab"),
   clear: $("clear"),
   newTabLink: $("new-tab-link"),
+  toast: $("toast"),
 };
 
 const state = {
@@ -561,6 +562,8 @@ $("reload").addEventListener("click", (e) => {
 
 /** Close a tab; closing the last one of this space leaves a blank tab, so the window stays. */
 async function closeTab(tabId) {
+  // Before the stand-in tab below, so undo doesn't leave it behind.
+  await ArcFox.mark("Tab closed", { tabs: true });
   const rest = state.tabs.filter((t) => t.id !== tabId && spaceOf(t) === state.spaceId);
   if (!rest.length) await newTabInSpace();
   await removeTabs(tabId);
@@ -570,8 +573,12 @@ async function closeTab(tabId) {
  * Close tabs. Closing the one you're on lands on the tab you were on before
  * it, which only the background knows: it keeps the window's activation order.
  */
-function removeTabs(tabIds) {
+async function removeTabs(tabIds) {
   const ids = [].concat(tabIds);
+  // Command bars hold nothing to come back to, so they are not worth an entry.
+  if (ids.some((id) => !ArcFox.isNewTabUrl(tabById(id)?.url))) {
+    await ArcFox.mark(ids.length > 1 ? `${ids.length} tabs closed` : "Tab closed", { tabs: true });
+  }
   if (ids.some((id) => tabById(id)?.active))
     return browser.runtime.sendMessage({ type: "arcfox:close-tab", tabIds: ids, windowId: state.windowId });
   return browser.tabs.remove(ids);
@@ -623,6 +630,62 @@ function handleSelectClick(e, el) {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") clearSelection();
+  // Cmd/Ctrl+Z, as long as nothing is being typed (the address bar, a rename).
+  const mod = isMac ? e.metaKey : e.ctrlKey;
+  if (!mod || e.altKey || e.key.toLowerCase() !== "z") return;
+  const el = document.activeElement;
+  if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+  e.preventDefault();
+  stepHistory(e.shiftKey ? "redo" : "undo");
+});
+
+/* ---------- Undo ---------- */
+
+let toastTimer = 0;
+let seenUndoAt = 0;
+
+/** A line at the bottom of the sidebar, with the way back. */
+function showToast(text, action = null) {
+  clearTimeout(toastTimer);
+  els.toast.replaceChildren(
+    h("span", { className: "toast-text" }, text),
+    action
+      ? h(
+          "button",
+          { className: "toast-act", onclick: action.run },
+          action.label,
+          h("span", { className: "toast-key" }, action.key || (isMac ? "⌘Z" : "Ctrl+Z"))
+        )
+      : null
+  );
+  els.toast.hidden = false;
+  toastTimer = setTimeout(() => (els.toast.hidden = true), 7000);
+}
+
+async function stepHistory(which) {
+  const label = which === "redo" ? await ArcFox.redo() : await ArcFox.undo();
+  if (!label) {
+    showToast(which === "redo" ? "Nothing to redo" : "Nothing to undo");
+    return;
+  }
+  const back = which === "redo" ? "undo" : "redo";
+  showToast(`${which === "redo" ? "Redone" : "Undone"}: ${label.toLowerCase()}`, {
+    label: back === "redo" ? "Redo" : "Undo",
+    key: back === "redo" ? (isMac ? "⇧⌘Z" : "Ctrl+Shift+Z") : isMac ? "⌘Z" : "Ctrl+Z",
+    run: () => stepHistory(back),
+  });
+  schedule(true);
+}
+
+// Every action records a point to come back to, here or in the background
+// (Cmd/Ctrl+W). The newest entry is what the toast offers to take back.
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area !== "session" || !changes.undo) return;
+  const stack = changes.undo.newValue || [];
+  const top = stack[stack.length - 1];
+  if (!top || top.quiet || !(top.at > seenUndoAt)) return;
+  seenUndoAt = top.at;
+  showToast(top.label, { label: "Undo", run: () => stepHistory("undo") });
 });
 
 const pinById = (id) => state.pins.find((i) => i.id === id);
@@ -911,6 +974,7 @@ els.clear.addEventListener("click", async () => {
     .filter((t) => !state.tabItem.has(t.id) && spaceOf(t) === state.spaceId)
     .map((t) => t.id);
   if (!ids.length) return;
+  await ArcFox.mark(`${ids.length} tabs closed`, { tabs: true });
   // Keep the space (and window) alive with a fresh tab.
   await newTabInSpace();
   await removeTabs(ids);
@@ -1131,6 +1195,9 @@ document.querySelector(".divider-row")?.addEventListener("drop", onTodayDrop);
 
 async function onTodayDrop(e) {
   e.preventDefault();
+  // A tab moved within the list is its own undo step; dragging a pinned item
+  // out unpins it, and that mark (with its label) joins this one.
+  await ArcFox.mark("Tab moved", { tabs: true, quiet: true });
   const mark = els.today.querySelector(".drop-before, .drop-after");
   const after = !!mark?.classList.contains("drop-after");
   const targetId = mark ? Number(after ? mark.dataset.lastTab || mark.dataset.tab : mark.dataset.tab) : null;

@@ -454,6 +454,9 @@ async function closeActiveTab() {
   const windowId = win.id;
   const tab = (win.tabs || []).find((t) => t.active);
   if (!tab) return;
+  // A point to come back to (Cmd/Ctrl+Z in the sidebar). A command bar holds
+  // nothing to restore, so it gets no entry.
+  if (!ArcFox.isNewTabUrl(tab.url)) await ArcFox.mark("Tab closed", { tabs: true });
   const rest = win.tabs.filter((t) => t.id !== tab.id && !t.hidden && !t.pinned);
   if (!rest.length) {
     // Nothing else in this space: keep (or restore) the command bar instead.

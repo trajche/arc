@@ -12,6 +12,9 @@
  *   Lists over the 8KB per-key quota continue in "<key>#1", "<key>#2", ...
  * storage.local
  *   faviconCache     {itemId: url}
+ * storage.session
+ *   undo / redo      [{ at, label, tabs, quiet, close?, snap: { lists, tabs } }]
+ *                    what the lists and tabs looked like before each action
  * session values (survive restarts)
  *   tab    arcfoxFav    id of the favorite / pinned item the tab belongs to
  *   tab    arcfoxSpace  space the tab lives in
@@ -637,6 +640,7 @@ const ArcFox = (() => {
     if (!space || !tab) return;
     const itemId = await getTabItem(tabId);
     const found = itemId && findItem(state, itemId);
+    await mark("Moved to space", { tabs: true });
     let moved = tabId;
     if (found) {
       if (isFavKey(found.key)) return; // favorites belong to a container, not a space
@@ -653,6 +657,7 @@ const ArcFox = (() => {
         index: tab.index + 1,
       });
       moved = replacement.id;
+      await markReplaced(replacement.id);
       markClosing(tabId);
       await browser.tabs.remove(tabId);
     } else {
@@ -830,6 +835,7 @@ const ArcFox = (() => {
       await moveItem(existing, key, beforeId, { parent });
       return findItem(state, existing).item;
     }
+    await mark(isFavKey(key) ? "Added to Favorites" : "Pinned");
     const item = { id: uid(), url: tab.url, title: tab.title || tab.url, icon: syncableIcon(tab.favIconUrl) };
     if (parent && !isFavKey(key)) item.parent = parent;
     const list = listFor(state, key).slice();
@@ -853,6 +859,11 @@ const ArcFox = (() => {
     const found = findItem(state, itemId);
     if (!found || itemId === beforeId) return;
     if (isFolder(found.item) && (isFavKey(toKey) || parent)) return;
+    const same = found.key === toKey;
+    await mark(
+      same ? "Moved" : isFavKey(toKey) ? "Moved to Favorites" : isFavKey(found.key) ? "Pinned" : "Moved to space",
+      { quiet: same }
+    );
     const item = { ...found.item };
     if (parent && !isFavKey(toKey)) item.parent = parent;
     else delete item.parent;
@@ -888,6 +899,7 @@ const ArcFox = (() => {
     const state = await getState();
     const found = findItem(state, itemId);
     if (!found) return null;
+    await mark(isFavKey(found.key) ? "Removed from Favorites" : "Unpinned");
     // A favorite may have a tab in several spaces: each keeps the one it is in.
     const tabs = await findBoundTabs(state, itemId);
     for (const tab of tabs) {
@@ -944,6 +956,7 @@ const ArcFox = (() => {
    */
   async function createFolder(spaceId, { name = "New Folder", itemIds = [], tabIds = [] } = {}) {
     const state = await getState();
+    await mark("Folder added");
     const key = pinKey(spaceId);
     const list = listFor(state, key).slice();
     const folder = { id: uid(), type: "folder", name, open: true };
@@ -977,6 +990,7 @@ const ArcFox = (() => {
     const state = await getState();
     const found = findItem(state, folderId);
     if (!found || !isFolder(found.item)) return;
+    if ("name" in patch) await mark("Folder renamed");
     const list = found.list.map((i) => (i.id === folderId ? { ...i, ...patch } : i));
     await writeList(found.key, list);
     notify();
@@ -987,6 +1001,7 @@ const ArcFox = (() => {
     const state = await getState();
     const found = findItem(state, folderId);
     if (!found || !isFolder(found.item)) return;
+    await mark(keepItems ? "Folder ungrouped" : "Folder deleted");
     const children = found.list.filter((i) => i.parent === folderId);
     if (!keepItems) {
       const tabs = await browser.tabs.query({});
@@ -1009,6 +1024,192 @@ const ArcFox = (() => {
       });
     await writeList(found.key, list);
     notify();
+  }
+
+  /* ---------- Undo ----------
+   * A drag lands in the pins instead of the list, the wrong tab gets closed:
+   * Cmd/Ctrl+Z in the sidebar puts it back. Instead of an inverse for every
+   * action, each action first records what the lists and the tabs looked like,
+   * and undo restores that. The stack lives in storage.session, so the
+   * background and every sidebar share one history and it survives the event
+   * page being suspended — and starts empty after a restart, like Firefox's
+   * own undo.
+   */
+
+  const UNDO_KEY = "undo";
+  const REDO_KEY = "redo";
+  const UNDO_MAX = 12;
+  const UNDO_BYTES = 2_000_000; // storage.session is not endless; big imports aren't undo material
+  const COALESCE_MS = 500; // one gesture can touch a list, a tab and a space
+
+  /** The lists and the tabs as they are now. */
+  async function snapshot() {
+    const state = await getState();
+    const lists = {};
+    for (const [key, list] of state.favLists) lists[key] = list;
+    for (const [spaceId, list] of state.pins) lists[pinKey(spaceId)] = list;
+    const open = await browser.tabs.query({ windowType: "normal" });
+    const tabs = [];
+    for (const t of open) {
+      if (t.incognito) continue; // private tabs are in no space and keep no history
+      tabs.push({
+        id: t.id,
+        windowId: t.windowId,
+        index: t.index,
+        url: t.url,
+        item: (await getTabItem(t.id)) || null,
+        space: (await getTabSpace(t.id)) || null,
+      });
+    }
+    return { lists, tabs };
+  }
+
+  async function readStack(key) {
+    const got = await browser.storage.session.get(key).catch(() => ({}));
+    return Array.isArray(got[key]) ? got[key] : [];
+  }
+
+  function trimStack(stack) {
+    if (stack.length > UNDO_MAX) stack.splice(0, stack.length - UNDO_MAX);
+    while (stack.length > 1 && JSON.stringify(stack).length > UNDO_BYTES) stack.shift();
+    return stack;
+  }
+
+  /**
+   * Remember where things stand, as the point `label` goes back to. Marks from
+   * one gesture land in the same breath (a drop moves an item, then the tab),
+   * so they keep the first state and the last label, and restore as widely as
+   * the widest of them asked.
+   *
+   * `tabs`: the action closes or moves tabs, so undo reopens and reorders them.
+   * `quiet`: nothing worth a word on screen (a reorder you can see happening).
+   */
+  async function mark(label, { tabs = false, quiet = false } = {}) {
+    const stack = await readStack(UNDO_KEY);
+    const top = stack[stack.length - 1];
+    if (top && Date.now() - top.at < COALESCE_MS) {
+      top.at = Date.now();
+      top.label = label;
+      top.tabs = top.tabs || tabs;
+      top.quiet = top.quiet && quiet;
+    } else {
+      stack.push({ at: Date.now(), label, tabs, quiet, snap: await snapshot() });
+      trimStack(stack);
+    }
+    // A new action is a new future: whatever was undone can't be redone now.
+    await browser.storage.session.set({ [UNDO_KEY]: stack, [REDO_KEY]: [] });
+  }
+
+  /**
+   * Tabs the action replaced the originals with (moving a tab to a space of
+   * another container reopens it there). Undo brings the originals back, so
+   * these go: without this there would be two of the same page.
+   */
+  async function markReplaced(tabId) {
+    const stack = await readStack(UNDO_KEY);
+    const top = stack[stack.length - 1];
+    if (!top) return;
+    top.close = [...(top.close || []), tabId];
+    top.tabs = true;
+    await browser.storage.session.set({ [UNDO_KEY]: stack });
+  }
+
+  let restoring = false;
+
+  /** Put the lists and the tabs back the way `entry` found them. */
+  async function restore(entry) {
+    const { lists, tabs } = entry.snap;
+    // Lists first: a tab's binding only counts while the item it names exists.
+    const state = await getState();
+    const now = {};
+    for (const [key, list] of state.favLists) now[key] = list;
+    for (const [spaceId, list] of state.pins) now[pinKey(spaceId)] = list;
+    const writes = {};
+    for (const [key, list] of Object.entries(lists)) {
+      if (JSON.stringify(now[key] || []) !== JSON.stringify(list)) writes[key] = list;
+    }
+    // A list the action brought into being (a new space's pins) goes back to
+    // nothing; one the action emptied is already in the snapshot.
+    for (const key of Object.keys(now)) if (!(key in lists) && now[key].length) writes[key] = [];
+    if (Object.keys(writes).length) await writeLists(writes);
+
+    const live = new Map((await browser.tabs.query({ windowType: "normal" })).map((t) => [t.id, t]));
+    const ids = new Map(); // tab id in the snapshot -> tab id now
+    for (const t of tabs) if (live.has(t.id)) ids.set(t.id, t.id);
+    if (entry.tabs) {
+      const gone = tabs.filter((t) => !ids.has(t.id) && isFavoritable(t.url));
+      if (gone.length) {
+        const closed = await browser.sessions.getRecentlyClosed({ maxResults: 25 }).catch(() => []);
+        const taken = new Set();
+        for (const t of gone) {
+          const hit = closed.find((s) => s.tab && s.tab.url === t.url && !taken.has(s.tab.sessionId));
+          if (!hit) continue;
+          taken.add(hit.tab.sessionId);
+          const back = await browser.sessions.restore(hit.tab.sessionId).catch(() => null);
+          if (back?.tab) ids.set(t.id, back.tab.id);
+        }
+      }
+    }
+    // Earliest first, so each move lands where the ones before it left room.
+    for (const t of [...tabs].sort((a, b) => a.index - b.index)) {
+      const id = ids.get(t.id);
+      if (id === undefined) continue;
+      const item = (await getTabItem(id)) || null;
+      if (item !== t.item) await (t.item ? setTabItem(id, t.item) : clearTabItem(id));
+      const space = (await getTabSpace(id)) || null;
+      if (space !== t.space) await (t.space ? setTabSpace(id, t.space) : clearTabSpace(id));
+      if (!entry.tabs) continue;
+      const tab = await browser.tabs.get(id).catch(() => null);
+      if (tab && (tab.index !== t.index || tab.windowId !== t.windowId)) {
+        await browser.tabs.move(id, { windowId: t.windowId, index: t.index }).catch(() => {});
+      }
+    }
+    if (entry.close?.length) {
+      const stale = entry.close.filter((id) => live.has(id));
+      if (stale.length) {
+        markClosing(stale);
+        await browser.tabs.remove(stale).catch(() => {});
+      }
+    }
+    for (const win of await browser.windows.getAll({ windowTypes: ["normal"] })) {
+      await syncVisibility(win.id).catch(() => {});
+    }
+    notify();
+  }
+
+  /** Step back one action. Returns its label, or null when there is nothing. */
+  async function undo() {
+    return step(UNDO_KEY, REDO_KEY);
+  }
+
+  /** Step forward again, as long as nothing has happened since the undo. */
+  async function redo() {
+    return step(REDO_KEY, UNDO_KEY);
+  }
+
+  async function step(fromKey, toKey) {
+    if (restoring) return null;
+    restoring = true;
+    try {
+      const from = await readStack(fromKey);
+      const entry = from.pop();
+      if (!entry) return null;
+      const to = await readStack(toKey);
+      to.push({ at: Date.now(), label: entry.label, tabs: entry.tabs, quiet: entry.quiet, snap: await snapshot() });
+      trimStack(to);
+      await browser.storage.session.set({ [fromKey]: from, [toKey]: to });
+      await restore(entry);
+      return entry.label;
+    } finally {
+      restoring = false;
+    }
+  }
+
+  /** What the next Cmd+Z and Cmd+Shift+Z would take back, for the sidebar. */
+  async function undoState() {
+    const [undoStack, redoStack] = await Promise.all([readStack(UNDO_KEY), readStack(REDO_KEY)]);
+    const last = (stack) => (stack.length ? stack[stack.length - 1].label : null);
+    return { undo: last(undoStack), redo: last(redoStack) };
   }
 
   /* ---------- Tab badges from other extensions ---------- */
@@ -1226,6 +1427,10 @@ const ArcFox = (() => {
     removeItem,
     resetItem,
     saveCurrentUrl,
+    mark,
+    undo,
+    redo,
+    undoState,
     isFolder,
     createFolder,
     updateFolder,

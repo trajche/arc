@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Undo, with Cmd/Ctrl+Z in the sidebar (and Cmd/Ctrl+Shift+Z to do it again).
+  It takes back a tab dropped in the favorites or the pins, an unpin or a
+  favorite removed, a folder added, renamed, ungrouped or deleted, a reorder,
+  a tab moved or sent to another space, and a closed tab — which comes back at
+  the position it had, in its space, still standing for the pinned item it
+  belonged to. Every action first notes where things stood, so undo puts the
+  lists and the tabs back rather than guessing an opposite; a dozen steps are
+  kept, until Firefox is closed. A line at the bottom of the sidebar says what
+  just happened and offers the way back, for the drops and closes that are
+  easy to miss.
+
 - A favorite can own a tab in each space. Favorites are shared by every space
   of the same container, but a favorite had one tab for all of them, so opening
   it from a second space jumped to the first space's tab. Its tab now belongs
