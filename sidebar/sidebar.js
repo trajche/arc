@@ -1195,16 +1195,19 @@ document.querySelector(".divider-row")?.addEventListener("drop", onTodayDrop);
 
 async function onTodayDrop(e) {
   e.preventDefault();
-  // A tab moved within the list is its own undo step; dragging a pinned item
-  // out unpins it, and that mark (with its label) joins this one.
-  await ArcFox.mark("Tab moved", { tabs: true, quiet: true });
+  // What was dropped, first: a DataTransfer only holds its data while the
+  // event is being handled, and reading it after an await comes back empty.
+  const itemId = e.dataTransfer.getData(ITEM_MIME);
+  const dropped = itemId ? null : readTabData(e.dataTransfer);
   const mark = els.today.querySelector(".drop-before, .drop-after");
   const after = !!mark?.classList.contains("drop-after");
   const targetId = mark ? Number(after ? mark.dataset.lastTab || mark.dataset.tab : mark.dataset.tab) : null;
   clearDropMarks();
+  // A tab moved within the list is its own undo step; dragging a pinned item
+  // out unpins it, and that mark (with its label) joins this one.
+  await ArcFox.mark("Tab moved", { tabs: true, quiet: true });
 
   let tabId = null;
-  const itemId = e.dataTransfer.getData(ITEM_MIME);
   if (itemId) {
     const st = await ArcFox.getState();
     const found = ArcFox.findItem(st, itemId);
@@ -1212,7 +1215,7 @@ async function onTodayDrop(e) {
     if (tab) tabId = tab.id;
     else if (found) tabId = (await newTabInSpace(found.item.url)).id;
   } else {
-    tabId = readTabData(e.dataTransfer)?.tabId ?? null;
+    tabId = dropped?.tabId ?? null;
   }
   if (tabId === null) return;
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.2
+
+- Dropping something in the tab list works again. The undo point 0.7.1 records
+  before a drop was taken before the drop was read, and a drag's data only
+  lives while the event is being handled: after the wait it came back empty, so
+  tab reordering and dragging a pinned item out of the list did nothing.
+
 ## 0.7.1
 
 - Undo, with Cmd/Ctrl+Z in the sidebar (and Cmd/Ctrl+Shift+Z to do it again).
