@@ -106,6 +106,11 @@
           "version": "0.7.0",
           "update_link": "https://github.com/trajche/arc/releases/download/v0.7.0/arc-0.7.0.xpi",
           "update_hash": "sha256:a6b8a575b9db4bd197106336876bfa330b256004264c65cb3d106deab76b21a4"
+        },
+        {
+          "version": "0.7.1",
+          "update_link": "https://github.com/trajche/arc/releases/download/v0.7.1/arc-0.7.1.xpi",
+          "update_hash": "sha256:efa87981d397721a3ebf9ca43e2a5ca7a620c21699d1bc4f504363184cdd6126"
         }
       ]
     }
