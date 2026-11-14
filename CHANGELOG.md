@@ -2,6 +2,11 @@
 
 ## 0.7.2
 
+- The sidebar's own title row is hidden again on Firefox 160. Firefox moved
+  that header ("Arc", the panel switcher and a close button) out of the panel
+  document and into the window, where the rule that hid it couldn't reach it.
+  Firefox's own panels keep their header. Needs the updated
+  `chrome/userChrome.css` and a restart.
 - Dropping something in the tab list works again. The undo point 0.7.1 records
   before a drop was taken before the drop was read, and a drag's data only
   lives while the event is being handled: after the wait it came back empty, so

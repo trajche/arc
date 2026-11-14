@@ -145,6 +145,17 @@
   }
 }
 
+/* Firefox 160 moved that header out of the panel document and into the
+   window itself (browser.xhtml), where the rule above can't reach it: the
+   sidebar then shows a title row ("Arc" with the panel switcher and a close
+   button) above Arc's own. Hide it there too, but only while the sidebar is
+   showing an extension panel (webext-panels.xhtml) -- Firefox's own panels
+   are laid out around their header and keep it. */
+#main-window:has(#sidebar[src*="webext-panels"]) #sidebar-panel-header {
+  visibility: collapse !important;
+  display: none !important;
+}
+
 /* What's left of the tab strip: a transparent patch in the sidebar's empty
    top-left corner (Arc's nav buttons sit on the right). It keeps the macOS
    window buttons, window dragging and double-click to zoom. The tabs stay
