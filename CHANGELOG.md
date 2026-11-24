@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Tabs can carry a line under their title saying what another extension is doing in them.
+  [Tab Driver](https://github.com/trajche/tabdriver) uses it to say what the AI agent is up to —
+  "Checking backlinks", "Filling the signup form", or the command it is running — in the space's
+  color while it works, gray once it stops, and "Done" when it gives the tab back. Extensions set
+  it with `{ type: "arcsidebar:set-status", statuses: [{ tabId, text, busy }] }`; see the README.
+
 ## 0.7.3
 
 - A space's own container now carries the space's emoji in its name, so

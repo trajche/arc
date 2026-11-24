@@ -155,6 +155,25 @@ await browser.runtime.sendMessage("arc@sidebar", {
 - Arcsidebar pings extensions that set badges or items (`{ type: "arcsidebar:ping" }`, no answer
   needed) and drops what they set once they're disabled or removed.
 
+And they can say what they're doing in a tab, on a line under its title:
+
+```js
+await browser.runtime.sendMessage("arc@sidebar", {
+  type: "arcsidebar:set-status",
+  statuses: [
+    { tabId: 12, text: "Filling form\u2026" },
+    { tabId: 13, text: "Done", busy: false },
+  ],
+});
+```
+
+- `text` is up to 64 characters. `busy` (the default) marks the line as work in progress: it takes
+  the space's color and its dot blinks. `busy: false` is the quiet gray line an agent leaves behind
+  when it has finished.
+- One line per tab: if two extensions write to the same tab, the last one wins. Each call replaces
+  your lines (up to 200); send an empty list to clear them.
+- Lines last as long as badges, and come back the same way after `arcsidebar:ready`.
+
 ## Development
 
 ```sh

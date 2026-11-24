@@ -35,6 +35,7 @@ const state = {
   tabItem: new Map(), // tabId -> itemId
   tabSpace: new Map(), // tabId -> spaceId
   badges: new Map(), // tabId -> badges other extensions put on it
+  status: new Map(), // tabId -> { text, busy } another extension wrote under the title
   tabs: [], // this window, sorted by index
 };
 
@@ -125,15 +126,17 @@ async function refresh() {
       // nobody's idea of a tab list: let it run on its own. Dropping a stale
       // provider writes to session storage, which schedules another refresh.
       ArcFox.pruneProviders().catch(() => {});
-      const [st, icons, allTabs, prefs, badges] = await Promise.all([
+      const [st, icons, allTabs, prefs, badges, status] = await Promise.all([
         ArcFox.getState(),
         ArcFox.getIconCache(),
         browser.tabs.query({}).then((tabs) => tabs.filter((t) => !removedTabs.has(t.id))),
         browser.storage.local.get([HIDE_FAV_HINT, PINS_COLLAPSED]),
         ArcFox.getBadges(),
+        ArcFox.getTabStatuses(),
       ]);
       const tData = performance.now();
       state.badges = badges;
+      state.status = status;
       state.hideFavHint = !!prefs[HIDE_FAV_HINT];
       collapsed = prefs[PINS_COLLAPSED] || {};
       if (scan) {
@@ -235,7 +238,9 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 const closeIcon = () => lucide(LUCIDE.x);
 
-/** favicon, mute, title, badges, close: the parts fillRow() updates. */
+/** favicon, mute, title, badges, close, status: the parts fillRow() updates.
+ * The status line is last so it wraps onto a second line of its own (.tab is
+ * a wrapping flex row), which leaves the parts above it where they were. */
 const rowParts = () => [
   h("span", { className: "favicon" }),
   h("button", { className: "icon-btn audio" }),
@@ -243,6 +248,7 @@ const rowParts = () => [
   h("span", { className: "title" }),
   h("span", { className: "badges" }),
   h("button", { className: "icon-btn close", title: "Close tab" }, closeIcon()),
+  h("span", { className: "status" }),
 ];
 
 function makeRow(dataset) {
@@ -273,6 +279,18 @@ function fillRow(el, tab, { title, url, icon }) {
   const badges = (tab && state.badges.get(tab.id)) || [];
   fillBadges(startBadgesEl, badges.filter((b) => b.position === "start"));
   fillBadges(badgesEl, badges.filter((b) => b.position !== "start"));
+  fillStatus(el, tab && state.status.get(tab.id));
+}
+
+/** The line another extension writes under the title (see "set-status" in background.js). */
+function fillStatus(el, status) {
+  const statusEl = el.lastElementChild;
+  if (!statusEl?.classList.contains("status")) return; // a row without one (split view)
+  const text = status?.text || "";
+  el.classList.toggle("has-status", !!text);
+  statusEl.classList.toggle("busy", !!status?.busy);
+  if (statusEl.textContent !== text) statusEl.textContent = text;
+  if (text) el.title = `${el.title}\n${text}`;
 }
 
 /** Badges other extensions set on a tab (see "Tab badges" in background.js). */
@@ -1264,7 +1282,7 @@ browser.runtime.onMessage.addListener((msg) => {
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area === "session" && ArcFox.BADGES_KEY in changes) schedule();
+  if (area === "session" && (ArcFox.BADGES_KEY in changes || ArcFox.STATUS_KEY in changes)) schedule();
   if (area !== "local") return;
   const keys = Object.keys(changes);
   const data = keys.some((k) => k === ArcFox.SPACES_KEY || k.startsWith(ArcFox.FAV_KEY) || k.startsWith(ArcFox.PIN_PREFIX));

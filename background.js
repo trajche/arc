@@ -82,10 +82,20 @@ browser.runtime.onMessage.addListener((msg) => {
 //   });
 // tabIds limits an item to those tabs, exceptTabIds hides it on them. A click sends
 // { type: "arcsidebar:menu-clicked", id, tabId } back to that extension. Same lifetime as badges.
+//
+// And they can say what they're doing in a tab, on a line under its title:
+//   browser.runtime.sendMessage("arc@sidebar", {
+//     type: "arcsidebar:set-status",
+//     statuses: [{ tabId, text: "Filling form\u2026" }, { tabId: 13, text: "Done", busy: false }],
+//   });
+// text is up to 64 characters; busy (the default) gives it a working dot, false a quiet one for
+// the line an agent leaves behind when it's finished. One line per tab, last writer wins. Each
+// call replaces that extension's lines; an empty list clears them. Same lifetime as badges.
 browser.runtime.onMessageExternal.addListener((msg, sender) => {
   if (!sender.id) return;
   if (msg?.type === "arcsidebar:set-badges") return ArcFox.setBadges(sender.id, msg.badges).then(() => ({ ok: true }));
   if (msg?.type === "arcsidebar:set-tab-menu") return ArcFox.setTabMenu(sender.id, msg.items).then(() => ({ ok: true }));
+  if (msg?.type === "arcsidebar:set-status") return ArcFox.setTabStatus(sender.id, msg.statuses).then(() => ({ ok: true }));
 });
 /* ---------- Freeing memory ----------
  * A space's tabs stay loaded while the space is hidden, so a window's memory is

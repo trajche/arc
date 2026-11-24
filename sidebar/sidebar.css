@@ -476,6 +476,46 @@ body.pins-collapsed #pinned { display: none; }
 @keyframes badge-pulse { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .tab .badge.pulse, .tab .badge.icon.pulse::after { animation: none; } }
 
+/* The line another extension writes under a tab's title, e.g. Tab Driver saying what the agent
+   is doing ("Filling form…"). The row is a wrapping flex line and the status comes last, so it
+   drops onto a second line of its own and the row grows only while there's something to say. */
+.tab .status { display: none; }
+.tab.has-status {
+  flex-wrap: wrap; /* only here: an ordinary row must never wrap */
+  row-gap: 0; /* the row's 10px gap is for the icons, not for the two lines */
+  height: auto;
+  min-height: 36px;
+  padding-block: 4px 6px;
+}
+.tab.has-status .status {
+  order: 1;
+  flex-basis: 100%;
+  display: block;
+  margin-inline-start: 26px; /* under the title: favicon (16px) + the row's gap (10px) */
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab.has-status .status::before {
+  content: "";
+  display: inline-block;
+  vertical-align: middle;
+  width: 5px;
+  height: 5px;
+  margin-block-end: 1px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* Working on it; a status left behind by a finished agent keeps the quiet gray. */
+.tab.has-status .status.busy { color: var(--space); }
+.tab.has-status .status.busy::before { animation: status-pulse 1.2s ease-in-out infinite; }
+@keyframes status-pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .tab.has-status .status.busy::before { animation: none; } }
+
 /* ---------- Downloads tray ---------- */
 
 .downloads {

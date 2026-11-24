@@ -32,6 +32,7 @@ const ArcFox = (() => {
   const BADGES_KEY = "tabBadges"; // storage.session: { [extensionId]: [{ tabId, label, title, color }] }
   const BADGE_PROVIDERS_KEY = "badgeProviders"; // storage.local: extensions that have set badges or menu items
   const TAB_MENU_KEY = "tabMenus"; // storage.session: { [extensionId]: [{ id, title, tabIds, exceptTabIds }] }
+  const STATUS_KEY = "tabStatus"; // storage.session: { [extensionId]: [{ tabId, text, busy, at }] }
   const VISITS_KEY = "visitsByContainer"; // storage.local: { [url]: { s: [cookieStoreId], t: lastVisit } }
   const MAX_VISITS = 4000;
   const ITEM_VALUE = "arcfoxFav"; // name kept so bindings from 0.1.x survive
@@ -1317,6 +1318,55 @@ const ArcFox = (() => {
     return byTab;
   }
 
+  /* ---------- What another extension is doing in a tab ----------
+   * A line under the tab's title, for an extension that works a tab by itself:
+   * Tab Driver writes what the agent is up to ("Filling form…"), and "Done"
+   * when it lets go. One line per tab — the extension that wrote last wins,
+   * since two agents in one tab is not a thing worth laying out. */
+
+  const MAX_STATUSES = 200; // per extension
+
+  /** Replace the status lines `extensionId` shows on tabs. */
+  function setTabStatus(extensionId, statuses) {
+    const write = badgeWrites.then(() => writeTabStatus(extensionId, statuses));
+    badgeWrites = write.catch(() => {});
+    return write;
+  }
+
+  async function writeTabStatus(extensionId, statuses) {
+    const { [STATUS_KEY]: all = {} } = await browser.storage.session.get(STATUS_KEY);
+    const before = all[extensionId] || [];
+    const at = new Map(before.map((s) => [s.tabId, s]));
+    const clean = (Array.isArray(statuses) ? statuses : [])
+      .slice(0, MAX_STATUSES)
+      .filter((s) => Number.isInteger(s?.tabId) && text(s.text, 64))
+      .map((s) => {
+        const line = text(s.text, 64);
+        const was = at.get(s.tabId);
+        return {
+          tabId: s.tabId,
+          text: line,
+          busy: s.busy !== false,
+          // When the line last changed, so the sidebar can let a finished one fade.
+          at: was && was.text === line ? was.at : Date.now(),
+        };
+      });
+    if (clean.length) all[extensionId] = clean;
+    else delete all[extensionId];
+    await browser.storage.session.set({ [STATUS_KEY]: all });
+    await rememberProvider(extensionId);
+  }
+
+  /** Status line by tab id: { text, busy, at, extensionId }. */
+  async function getTabStatuses() {
+    const { [STATUS_KEY]: all = {} } = await browser.storage.session.get(STATUS_KEY).catch(() => ({}));
+    const byTab = new Map();
+    for (const [extensionId, statuses] of Object.entries(all)) {
+      for (const s of statuses) byTab.set(s.tabId, { ...s, extensionId });
+    }
+    return byTab;
+  }
+
   /* ---------- Tab menu items from other extensions ---------- */
 
   const MAX_MENU_ITEMS = 5; // per extension
@@ -1371,13 +1421,15 @@ const ArcFox = (() => {
   async function pruneProviders(force = false) {
     if (!force && Date.now() - lastProviderCheck < 10000) return;
     lastProviderCheck = Date.now();
-    const [{ [BADGES_KEY]: badges = {} }, { [TAB_MENU_KEY]: menus = {} }] = await Promise.all([
+    const [{ [BADGES_KEY]: badges = {} }, { [TAB_MENU_KEY]: menus = {} }, { [STATUS_KEY]: statuses = {} }] = await Promise.all([
       browser.storage.session.get(BADGES_KEY).catch(() => ({})),
       browser.storage.session.get(TAB_MENU_KEY).catch(() => ({})),
+      browser.storage.session.get(STATUS_KEY).catch(() => ({})),
     ]);
-    const ids = new Set([...Object.keys(badges), ...Object.keys(menus)]);
+    const ids = new Set([...Object.keys(badges), ...Object.keys(menus), ...Object.keys(statuses)]);
     await Promise.all([...ids].map((id) =>
-      browser.runtime.sendMessage(id, { type: "arcsidebar:ping" }).catch(() => Promise.all([setBadges(id, []), setTabMenu(id, [])]))));
+      browser.runtime.sendMessage(id, { type: "arcsidebar:ping" }).catch(() =>
+        Promise.all([setBadges(id, []), setTabMenu(id, []), setTabStatus(id, [])]))));
   }
 
   /** Badges and menu items live in session storage: ask the extensions that set them before to send them again. */
@@ -1394,9 +1446,12 @@ const ArcFox = (() => {
     getBadges,
     setTabMenu,
     tabMenuFor,
+    setTabStatus,
+    getTabStatuses,
     pruneProviders,
     announceToBadgeProviders,
     BADGES_KEY,
+    STATUS_KEY,
     FAV_KEY,
     favKey,
     isFavKey,
