@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.4
 
 - Tabs can carry a line under their title saying what another extension is doing in them.
   [Tab Driver](https://github.com/trajche/tabdriver) uses it to say what the AI agent is up to —
