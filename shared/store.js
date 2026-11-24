@@ -514,18 +514,30 @@ const ArcFox = (() => {
   }
 
   /**
-   * Give the space's container the space's name and color, so Firefox's "Open
-   * in container" menus and the tab stripe read the same as Arc's footer. Only
-   * containers Arc made (ownContainer) are touched: a container the user keeps
-   * for their own reasons isn't Arc's to rename.
+   * What a space's own container is called: the space's name behind its icon,
+   * the way the sidebar writes it ("💻 Work"). Firefox has no icon of its own to
+   * show in the container menus, so the emoji is part of the name there.
+   */
+  function containerName(space) {
+    const name = (space?.name || "").trim() || "Space";
+    const icon = (space?.icon || "").trim();
+    return icon ? `${icon} ${name}` : name;
+  }
+
+  /**
+   * Give the space's container the space's name, icon and color, so Firefox's
+   * "Open in container" menus and the tab stripe read the same as Arc's
+   * footer. Only containers Arc made (ownContainer) are touched: a container
+   * the user keeps for their own reasons isn't Arc's to rename.
    */
   async function syncContainer(space) {
     if (!space?.container || !space.ownContainer) return;
     const identity = await browser.contextualIdentities.get(space.container).catch(() => null);
     if (!identity) return;
     const color = COLORS[space.color] ? space.color : identity.color; // same palette as Firefox's
-    if (identity.name === space.name && identity.color === color) return;
-    await browser.contextualIdentities.update(space.container, { name: space.name, color }).catch(() => {});
+    const name = containerName(space);
+    if (identity.name === name && identity.color === color) return;
+    await browser.contextualIdentities.update(space.container, { name, color }).catch(() => {});
   }
 
   async function saveSpace(space) {
@@ -557,11 +569,14 @@ const ArcFox = (() => {
       spaces[i] = { ...space, ownContainer: identity?.icon === "fingerprint" };
       changed = true;
     }
-    if (!changed) return;
-    stateCache = null;
-    await DATA.set({ [SPACES_KEY]: spaces });
+    if (changed) {
+      stateCache = null;
+      await DATA.set({ [SPACES_KEY]: spaces });
+    }
+    // Every own container, not only the adopted ones: this is also where a
+    // container made before Arc put the space's icon in the name catches up.
     for (const space of spaces) await syncContainer(space);
-    notify();
+    if (changed) notify();
   }
 
   async function moveSpace(spaceId, beforeSpaceId) {
@@ -1412,6 +1427,7 @@ const ArcFox = (() => {
     syncVisibility,
     focusTab,
     saveSpace,
+    containerName,
     adoptArcContainers,
     moveSpace,
     spaceTabs,

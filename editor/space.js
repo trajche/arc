@@ -178,7 +178,12 @@ async function save(e) {
   let ownContainer = !!space?.ownContainer && container === space?.container;
   try {
     if (container === "new") {
-      const created = await browser.contextualIdentities.create({ name, color: draft.color, icon: "fingerprint" });
+      const created = await browser.contextualIdentities.create({
+        // Named the way the space is, icon and all (see ArcFox.containerName).
+        name: ArcFox.containerName({ name, icon: draft.icon }),
+        color: draft.color,
+        icon: "fingerprint",
+      });
       container = created.cookieStoreId;
       ownContainer = true;
     }

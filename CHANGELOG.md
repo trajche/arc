@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- A space's own container now carries the space's emoji in its name, so
+  Firefox's "Open in container" menu and the container picker read the same as
+  Arc's footer ("🚀 Work", not "Work"). Containers already made catch up on the
+  next update; a container Arc didn't make is still left alone.
+
 ## 0.7.2
 
 - The sidebar's own title row is hidden again on Firefox 160. Firefox moved
